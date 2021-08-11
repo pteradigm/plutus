@@ -22,8 +22,8 @@ import Halogen (RefLabel(..))
 import Marlowe.Execution.Types (NamedAction)
 import Marlowe.Execution.Types (State) as Execution
 import Marlowe.Extended.Metadata (MetaData)
-import Marlowe.PAB (MarloweParams, PlutusAppId)
-import Marlowe.Semantics (AccountId, Accounts, Value, ChoiceId, ChosenNum, Party, Payment, Slot, Token(..), TransactionInput)
+import Marlowe.PAB (PlutusAppId)
+import Marlowe.Semantics (AccountId, Accounts, Value, ChoiceId, ChosenNum, MarloweParams, Party, Payment, Slot, Token(..), TransactionInput)
 import WalletData.Types (WalletDetails, WalletNickname)
 
 type State
