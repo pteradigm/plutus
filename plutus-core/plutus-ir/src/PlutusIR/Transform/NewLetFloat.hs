@@ -78,12 +78,19 @@ removeLets ms = go
           Let a NonRec (b NE.:| bs) tIn | not (null bs) ->
                 go (Let a NonRec (pure b) $ Let a NonRec (fromList bs) tIn)
           Let a r@Rec bs tIn ->
-              let (m', tIn') = go tIn
+              let
+                  (r1s, bs') = NE.unzip $ fmap goBinding bs
+                  r1 = mconcat $ toList r1s
+                  (r2, tIn') = go tIn
               in case M.lookup (head $ representativeBinding bs^..bindingIds) ms of
-                  Nothing  -> (m', Let a r bs tIn)
-                  Just pos -> (M.insertWith (<>) pos (pure (a,r,bs)) m', tIn')
+                  Nothing  -> (r1 <> r2, Let a r bs' tIn')
+                  Just pos -> (M.insertWith (<>) pos (pure (a,r,bs')) r1 <> r2, tIn')
           t' -> t' & termSubterms go
 
+      goBinding (TermBind x s d t)  =
+         let (m, t') = go t
+         in (m, TermBind x s d t')
+      goBinding b = (mempty, b)
 
 floatBackLets :: -- | remove result
                 (M.Map Pos (NE.NonEmpty (LetHoled TyName Name uni fun a)) -- letterms
