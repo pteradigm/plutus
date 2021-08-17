@@ -5,7 +5,7 @@ module Spec.Marlowe.Actus
     )
 where
 
-import           Language.Marlowe.ACTUS.Analysis                  (genProjectedCashflows)
+import           Language.Marlowe.ACTUS.Analysis                  (sampleCashflows)
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms hiding (Assertion)
 import           Spec.Marlowe.Util
 import           Test.Tasty
@@ -16,8 +16,8 @@ tests n t = testGroup n $ [ testCase (identifier tc) (runTest tc) | tc <- t]
 
 runTest :: TestCase -> Assertion
 runTest tc@TestCase{..} =
-  let testcase = testToContractTerms tc
-      contract = setDefaultContractTermValues testcase
-      observed = parseObservedValues dataObserved
-      cashFlows = genProjectedCashflows observed contract
+  let testcase       = testToContractTerms tc
+      contract       = setDefaultContractTermValues testcase
+      observed       = parseObservedValues dataObserved
+      (_, cashFlows) = sampleCashflows observed contract
   in assertTestResults cashFlows results identifier
