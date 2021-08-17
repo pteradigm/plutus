@@ -2,7 +2,7 @@
 
 module Language.Marlowe.ACTUS.Model.SCHED.ContractSchedule where
 
-import           Data.Maybe                                                 (fromJust)
+import           Data.Maybe                                                 (fromJust, fromMaybe)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents          (EventType (FP, IED, IP, IPCB, IPCI, MD, PP, PR, PRD, PY, RR, RRF, SC, TD))
 import           Language.Marlowe.ACTUS.Definitions.ContractState           (ContractStatePoly (tmd))
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms           (CT (..), ContractTerms (..))
@@ -12,10 +12,10 @@ import           Language.Marlowe.ACTUS.Model.SCHED.ContractScheduleModel
 import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator     (inf, sup)
 
 schedule :: EventType -> ContractTerms -> Maybe [ShiftedDay]
-schedule ev ct@ContractTerms {..} =
+schedule ev ct@ContractTerms{..} =
     let
         _IED       = fromJust ct_IED
-        _FER       = fromJust ct_FER
+        _FER       = fromMaybe 0.0 ct_FER
         _MD        = fromJust ct_MD
         _SCEF      = fromJust ct_SCEF
         _PYTP      = fromJust ct_PYTP
@@ -77,7 +77,7 @@ schedule ev ct@ContractTerms {..} =
             FP   -> _SCHED_FP_PAM scfg _FER ct_FECL _IED ct_FEANX _tmd
             PRD  -> _SCHED_PRD_PAM scfg ct_PRD
             TD   -> _SCHED_TD_PAM scfg ct_TD
-            IP   -> _SCHED_IP_NAM scfg _IED ct_PRCL ct_PRANX ct_IPCED ct_IPANX ct_IPCL _tmd
+            IP   -> _SCHED_IP_NAM scfg ct_IED ct_PRCL ct_PRANX ct_IPCED ct_IPANX ct_IPCL (Just _tmd)
             IPCI -> _SCHED_IPCI_PAM scfg _IED ct_IPANX ct_IPCL ct_IPCED _MD ct_IPNR
             IPCB -> _SCHED_IPCB_LAM scfg _IED ct_IPCB ct_IPCBCL ct_IPCBANX _tmd
             RR   -> _SCHED_RR_PAM scfg _IED ct_SD ct_RRANX ct_RRCL ct_RRNXT _tmd
@@ -95,7 +95,7 @@ schedule ev ct@ContractTerms {..} =
             FP   -> _SCHED_FP_PAM scfg _FER ct_FECL _IED ct_FEANX _MD
             PRD  -> _SCHED_PRD_PAM scfg ct_PRD
             TD   -> _SCHED_TD_PAM scfg ct_TD
-            IP   -> _SCHED_IP_NAM scfg _IED ct_PRCL ct_PRANX ct_IPCED ct_IPANX ct_IPCL _tmd
+            IP   -> _SCHED_IP_NAM scfg ct_IED ct_PRCL ct_PRANX ct_IPCED ct_IPANX ct_IPCL (Just _tmd)
             IPCI -> _SCHED_IPCI_PAM scfg _IED ct_IPANX ct_IPCL ct_IPCED _MD ct_IPNR
             IPCB -> _SCHED_IPCB_LAM scfg _IED ct_IPCB ct_IPCBCL ct_IPCBANX _tmd
             RR   -> _SCHED_RR_PAM scfg _IED ct_SD ct_RRANX ct_RRCL ct_RRNXT _MD

@@ -1,5 +1,7 @@
 module Language.Marlowe.ACTUS.Model.SCHED.ContractScheduleModel where
 
+import           Control.Applicative                                    (liftA2)
+import           Control.Monad                                          (liftM4)
 import           Data.Maybe                                             (fromJust, fromMaybe, isJust, isNothing)
 import           Data.Time                                              (Day)
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (Cycle (..), IPCB (IPCB_NTL), PPEF (..),
@@ -13,6 +15,9 @@ import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator (generat
 
 _S :: Day -> Cycle -> Day -> ScheduleConfig -> ShiftedSchedule
 _S = generateRecurrentScheduleWithCorrections
+
+_S' :: Maybe Day -> Maybe Cycle -> Maybe Day -> Maybe ScheduleConfig -> Maybe ShiftedSchedule
+_S' = liftM4 generateRecurrentScheduleWithCorrections
 
 shift :: ScheduleConfig -> Day -> ShiftedDay
 shift = applyBDCWithCfg
@@ -140,24 +145,22 @@ _SCHED_IPCB_LAM scfg _IED _IPCB _IPCBCL _IPCBANX _MD =
 
 -- Negative Amortizer (NAM)
 
-_SCHED_IP_NAM :: ScheduleConfig -> Day -> Maybe Cycle -> Maybe Day -> Maybe Day -> Maybe Day -> Maybe Cycle -> Day -> Maybe [ShiftedDay]
+_SCHED_IP_NAM :: ScheduleConfig -> Maybe Day -> Maybe Cycle -> Maybe Day -> Maybe Day -> Maybe Day -> Maybe Cycle -> Maybe Day -> Maybe [ShiftedDay]
 _SCHED_IP_NAM scfg _IED _PRCL _PRANX _IPCED _IPANX _IPCL _MD =
-    let maybeS  | isNothing _PRANX = Just $ _IED `plusCycle` fromJust _PRCL
+    let maybeS  | isNothing _PRANX = liftA2 plusCycle _IED _PRCL
                 | otherwise        = _PRANX
 
-        _T      = fromJust maybeS `minusCycle` fromJust _PRCL
+        _T      = liftA2 minusCycle maybeS _PRCL
 
         r       | isJust _IPCED = _IPCED
                 | isJust _IPANX = _IPANX
-                | isJust _IPCL  = Just $ _IED `plusCycle` fromJust _IPCL
+                | isJust _IPCL  = liftA2 plusCycle _IED _IPCL
                 | otherwise     = Nothing
 
-        u       | isNothing _IPANX && isNothing _IPCL    = Nothing
-                | isJust _IPCED && fromJust _IPCED >= _T = Nothing
-                | otherwise                              = (\s -> _S s (fromJust _IPCL) _MD scfg) <$> r
+        u       | isNothing _IPANX && isNothing _IPCL                         = Nothing
+                | isJust _IPCED    && fromMaybe False (liftA2 (>=) _IPCED _T) = Nothing
+                | otherwise                                                   = _S' r _IPCL _MD (Just scfg)
 
-        v       = (\s -> _S s (fromJust _PRCL) _MD scfg) <$> maybeS
+        v       = _S' maybeS _PRCL _MD (Just scfg)
 
-        result  = Just (fromMaybe [] u ++ fromMaybe [] v)
-    in
-        result
+    in liftA2 (++) u v
