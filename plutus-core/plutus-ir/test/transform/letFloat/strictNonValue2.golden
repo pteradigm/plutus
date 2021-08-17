@@ -3,11 +3,14 @@
   (termbind
     (strict)
     (vardecl x (con integer))
-    (let
-      (nonrec)
-      (termbind (nonstrict) (vardecl y (con integer)) (con integer 1))
-      [ (lam z (con integer) z) y ]
-    )
+    [
+      (lam z (con integer) z)
+      (let
+        (nonrec)
+        (termbind (nonstrict) (vardecl y (con integer)) (con integer 1))
+        y
+      )
+    ]
   )
   (con integer 1)
 )

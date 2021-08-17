@@ -10,15 +10,18 @@
         (let
           (nonrec)
           (termbind (strict) (vardecl k (con integer)) (con integer 1))
-          (termbind
-            (strict)
-            (vardecl j (con integer))
-            [
-              [ (builtin addInteger) k ]
-              [ [ (builtin addInteger) (con integer 1) ] x ]
-            ]
+          (let
+            (nonrec)
+            (termbind
+              (strict)
+              (vardecl j (con integer))
+              [
+                [ (builtin addInteger) k ]
+                [ [ (builtin addInteger) (con integer 1) ] x ]
+              ]
+            )
+            j
           )
-          j
         )
       )
       (con integer 1)

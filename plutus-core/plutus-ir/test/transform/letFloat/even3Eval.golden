@@ -1,46 +1,46 @@
 (let
-  (nonrec)
+  (rec)
   (datatypebind
     (datatype
-      (tyvardecl Bool (type))
+      (tyvardecl Nat (type))
 
-      match_Bool
-      (vardecl True Bool) (vardecl False Bool)
+      match_Nat
+      (vardecl Zero Nat) (vardecl Suc (fun Nat Nat))
     )
   )
   (let
-    (rec)
+    (nonrec)
     (datatypebind
       (datatype
-        (tyvardecl Nat (type))
+        (tyvardecl Bool (type))
 
-        match_Nat
-        (vardecl Zero Nat) (vardecl Suc (fun Nat Nat))
+        match_Bool
+        (vardecl True Bool) (vardecl False Bool)
       )
     )
     (let
-      (rec)
-      (termbind
-        (strict)
-        (vardecl even (fun Nat Bool))
-        (lam
-          n
-          Nat
-          [ [ { [ match_Nat n ] Bool } True ] (lam pred Nat [ odd pred ]) ]
-        )
-      )
-      (termbind
-        (strict)
-        (vardecl odd (fun Nat Bool))
-        (lam
-          n
-          Nat
-          [ [ { [ match_Nat n ] Bool } False ] (lam pred Nat [ even pred ]) ]
-        )
-      )
+      (nonrec)
+      (termbind (strict) (vardecl three Nat) [ Suc [ Suc [ Suc Zero ] ] ])
       (let
-        (nonrec)
-        (termbind (strict) (vardecl three Nat) [ Suc [ Suc [ Suc Zero ] ] ])
+        (rec)
+        (termbind
+          (strict)
+          (vardecl even (fun Nat Bool))
+          (lam
+            n
+            Nat
+            [ [ { [ match_Nat n ] Bool } True ] (lam pred Nat [ odd pred ]) ]
+          )
+        )
+        (termbind
+          (strict)
+          (vardecl odd (fun Nat Bool))
+          (lam
+            n
+            Nat
+            [ [ { [ match_Nat n ] Bool } False ] (lam pred Nat [ even pred ]) ]
+          )
+        )
         [ even three ]
       )
     )
