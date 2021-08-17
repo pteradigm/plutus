@@ -24,12 +24,12 @@ import           Prelude                                               hiding (F
 
 
 genProjectedCashflows :: DataObserved -> ContractTerms -> [CashFlow]
-genProjectedCashflows dataObserved = sampleCashflows dataObserved
+genProjectedCashflows = sampleCashflows
 
 postProcessSchedule :: ContractTerms -> [(EventType, ShiftedDay)] -> [(EventType, ShiftedDay)]
 postProcessSchedule ct =
     let trim = L.dropWhile (\(_, d) -> calculationDay d < ct_SD ct)
-        prioritised = [AD, IED, PR, PI, PRF, PY, FP, PRD, TD, IP, IPCI, IPCB, RR, PP, CE, MD, RRF, SC, STD, DV, XD, MR]
+        prioritised = [AD, IED, PR, PRF, PY, FP, PRD, TD, IP, IPCI, IPCB, RR, PP, CE, MD, RRF, SC, STD, DV, XD, MR]
         priority :: (EventType, ShiftedDay) -> Integer
         priority (event, _) = fromJust $ M.lookup event $ M.fromList (zip prioritised [1..])
         simillarity (_, l) (_, r) = calculationDay l == calculationDay r
@@ -51,13 +51,13 @@ sampleCashflows dataObserved terms =
         events' = postProcessSchedule terms events
 
         -- needed for PAM
-        events'' | isJust (ct_TD terms) = L.filter (\(_, (ShiftedDay{ calculationDay = calculationDay })) -> calculationDay <= fromJust (ct_TD terms)) events'
+        events'' | isJust (ct_TD terms) = L.filter (\(_, ShiftedDay{ calculationDay = calculationDay }) -> calculationDay <= fromJust (ct_TD terms)) events'
                  | otherwise = events'
 
         applyStateTransition (st, ev, date) (ev', date') =
-            (stateTransition ev ((getRiskFactors dataObserved ev (calculationDay date) terms)) terms st (calculationDay date), ev', date')
+            (stateTransition ev (getRiskFactors dataObserved ev (calculationDay date) terms) terms st (calculationDay date), ev', date')
         calculatePayoff (st, ev, date) =
-            payoff ev ((getRiskFactors dataObserved ev (calculationDay date) terms)) terms st (calculationDay date)
+            payoff ev (getRiskFactors dataObserved ev (calculationDay date) terms) terms st (calculationDay date)
 
         initialState =
             ( inititializeState terms
@@ -67,7 +67,7 @@ sampleCashflows dataObserved terms =
         states  = L.tail $ L.scanl applyStateTransition initialState events''
 
         -- needed for PAM
-        states' | isJust (ct_PRD terms) = L.filter (\(_, _, (ShiftedDay{ calculationDay = calculationDay })) -> calculationDay >= fromJust (ct_PRD terms)) states
+        states' | isJust (ct_PRD terms) = L.filter (\(_, _, ShiftedDay{ calculationDay = calculationDay }) -> calculationDay >= fromJust (ct_PRD terms)) states
                 | otherwise = states
 
         payoffs = calculatePayoff <$> states'
@@ -89,18 +89,18 @@ sampleCashflows dataObserved terms =
 genZeroRiskAssertions :: ContractTerms -> Assertion -> Contract -> Contract
 genZeroRiskAssertions terms@ContractTerms{..} NpvAssertionAgainstZeroRiskBond{..} continue =
     let
-        cfs = genProjectedCashflows (M.empty) terms
+        cfs = genProjectedCashflows M.empty terms
 
         dateToYearFraction :: Day -> Double
         dateToYearFraction dt = _y (fromJust ct_DCC) ct_SD dt ct_MD
 
-        dateToDiscountFactor dt =  (1 - zeroRiskInterest) ** (dateToYearFraction dt)
+        dateToDiscountFactor dt =  (1 - zeroRiskInterest) ** dateToYearFraction dt
 
-        accumulateAndDiscount :: (Value Observation) -> (CashFlow, Integer) ->  (Value Observation)
+        accumulateAndDiscount :: Value Observation -> (CashFlow, Integer) -> Value Observation
         accumulateAndDiscount acc (cf, t) =
             let discountFactor = dateToDiscountFactor $ cashCalculationDay cf
-                sign x = if (amount cf < 0.0) then (NegValue x) else x
-            in (constnt discountFactor) * (sign $ useval "payoff" t) + acc
+                sign x = if amount cf < 0.0 then NegValue x else x
+            in constnt discountFactor * (sign $ useval "payoff" t) + acc
         npv = foldl accumulateAndDiscount (constnt 0) (zip cfs [1..])
     in Assert (ValueLT (constnt expectedNpv) npv) continue
 

@@ -13,6 +13,7 @@ import           GHC.Generics     (Generic)
 data CT = PAM -- principal at maturity
         | LAM -- linear amortizer
         | NAM -- negative amortizer
+        | ANN -- annuity
         deriving stock (Show, Read, Eq, Generic) deriving anyclass (FromJSON, ToJSON)
 
 -- ContractRole

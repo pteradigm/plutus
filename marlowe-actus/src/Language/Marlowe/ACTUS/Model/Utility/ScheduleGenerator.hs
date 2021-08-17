@@ -49,14 +49,10 @@ correction Cycle{ stub = stub, includeEndDay = includeEndDay} anchorDate endDate
     lastDate = L.last schedule
     schedule' = L.init schedule
     schedule'Size = L.length schedule'
-    schedule'' =
-      if includeEndDay then
-        schedule' ++ [endDate]
-      else
-        if endDate == anchorDate then
-          L.delete anchorDate schedule'
-        else
-          schedule'
+    schedule''
+      | includeEndDay         = schedule' ++ [endDate]
+      | endDate == anchorDate = L.delete anchorDate schedule'
+      | otherwise             = schedule'
   in
     if stub == LongStub && L.length schedule'' > 2 && endDate /= lastDate then
       L.delete (schedule'' !! (schedule'Size - 1)) schedule''
@@ -78,7 +74,7 @@ generateRecurrentScheduleWithCorrections
   :: Day -> Cycle -> Day -> ScheduleConfig -> ShiftedSchedule
 generateRecurrentScheduleWithCorrections anchorDate cycle endDate ScheduleConfig {..}
   = generateRecurrentSchedule cycle anchorDate endDate &
-      ((correction cycle anchorDate endDate) >>>
+      (correction cycle anchorDate endDate >>>
       (fmap $ applyEOMC anchorDate cycle (fromJust eomc)) >>>
       (fmap $ applyBDC (fromJust bdc) (fromJust calendar)))
 
@@ -96,7 +92,6 @@ shiftDate date n p = case p of
   P_Q -> addGregorianMonthsClip (n * 3) date
   P_H -> addGregorianMonthsClip (n * 6) date
   P_Y -> addGregorianYearsClip n date
-
 
 {- End of Month Convention -}
 applyEOMC :: Day -> Cycle -> EOMC -> Day -> Day

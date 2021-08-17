@@ -10,7 +10,8 @@ import           Language.Marlowe.ACTUS.Ops                       (ActusNum (..)
                                                                    DateOps (_lt), RoleSignOps (_r))
 import           Prelude                                          hiding (Fractional, Num, (*), (+), (-), (/))
 
--- Principal at Maturity
+-- Principal at Maturity (PAM)
+
 _STF_AD_PAM :: ActusNum a => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
 _STF_AD_PAM st@ContractStatePoly{..} t y_sd_t = st {
     ipac = ipac + y_sd_t * ipnr * nt,
@@ -132,7 +133,8 @@ _STF_SC_PAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _F
 _STF_CE_PAM :: ActusNum a => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
 _STF_CE_PAM = _STF_AD_PAM
 
--- Linear Amortiser
+-- Linear Amortiser (LAM)
+
 _STF_AD_LAM :: ActusNum a => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
 _STF_AD_LAM = _STF_AD_PAM
 
@@ -205,12 +207,6 @@ _STF_FP_LAM st@ContractStatePoly{..} t y_sd_t = st {
 _STF_PRD_LAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> ContractStatePoly a b
 _STF_PRD_LAM = _STF_PY_LAM
 
-_STF_TD_LAM :: ActusOps a => ContractStatePoly a b -> b -> ContractStatePoly a b
-_STF_TD_LAM = _STF_TD_PAM
-
-_STF_IP_LAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> ContractStatePoly a b
-_STF_IP_LAM = _STF_IP_PAM
-
 _STF_IPCI_LAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe IPCB -> ContractStatePoly a b
 _STF_IPCI_LAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER _CNTRL _IPCB =
     let
@@ -258,15 +254,7 @@ _STF_SC_LAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _F
             _      -> (o_rf_SCMO - _SCIED) / _SCIED
     in st' {nsc = nsc', isc = isc'}
 
-_STF_CE_LAM :: ActusNum a => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
-_STF_CE_LAM = _STF_AD_PAM
-
--- Negative Amortizer
-_STF_AD_NAM :: ActusNum a => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
-_STF_AD_NAM = _STF_AD_PAM
-
-_STF_IED_NAM :: (RoleSignOps a1, ActusNum a1, DateOps a2 a1, ActusOps a1) => ContractStatePoly a1 a2 -> a2 -> a1 -> Maybe a1 -> Maybe a2 -> CR -> Maybe a1 -> a1 -> Maybe IPCB -> Maybe a1 -> ContractStatePoly a1 a2
-_STF_IED_NAM = _STF_IED_LAM
+-- Negative Amortizer (NAM)
 
 _STF_PR_NAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe IPCB -> ContractStatePoly a b
 _STF_PR_NAM st@ContractStatePoly{..} t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER _CNTRL _IPCB =
@@ -274,41 +262,10 @@ _STF_PR_NAM st@ContractStatePoly{..} t pp_payoff y_sd_t y_tfpminus_t y_tfpminus_
         nt' = nt - prnxt - ipac'
     in st' { nt = nt' }
 
-_STF_MD_NAM :: ActusOps a => ContractStatePoly a b -> b -> ContractStatePoly a b
-_STF_MD_NAM = _STF_MD_LAM
+-- Annuity (ANN)
 
-_STF_PP_NAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe IPCB -> ContractStatePoly a b
-_STF_PP_NAM = _STF_PP_LAM
+_STF_RR_ANN :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> a -> a -> a -> a -> a -> a -> a -> ContractStatePoly a b
+_STF_RR_ANN = _STF_RR_LAM -- FIXME: implement
 
-_STF_PY_NAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> ContractStatePoly a b
-_STF_PY_NAM = _STF_PY_LAM
-
-_STF_FP_NAM :: (ActusNum a, ActusOps a) => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
-_STF_FP_NAM = _STF_FP_LAM
-
-_STF_PRD_NAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> ContractStatePoly a b
-_STF_PRD_NAM = _STF_PRD_LAM
-
-_STF_TD_NAM :: ActusOps a => ContractStatePoly a b -> b -> ContractStatePoly a b
-_STF_TD_NAM = _STF_TD_PAM
-
-_STF_IP_NAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> ContractStatePoly a b
-_STF_IP_NAM = _STF_IP_PAM
-
-_STF_IPCI_NAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe IPCB -> ContractStatePoly a b
-_STF_IPCI_NAM = _STF_IPCI_LAM
-
-_STF_IPCB_NAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> ContractStatePoly a b
-_STF_IPCB_NAM = _STF_IPCB_LAM
-
-_STF_RR_NAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> a -> a -> a -> a -> a -> a -> a -> ContractStatePoly a b
-_STF_RR_NAM = _STF_RR_LAM
-
-_STF_RRF_NAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe a -> ContractStatePoly a b
-_STF_RRF_NAM = _STF_RRF_LAM
-
-_STF_SC_NAM :: (RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> SCEF -> a -> a -> ContractStatePoly a b
-_STF_SC_NAM = _STF_SC_LAM
-
-_STF_CE_NAM :: ActusNum a => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
-_STF_CE_NAM = _STF_AD_PAM
+_STF_RRF_ANN :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe a -> ContractStatePoly a b
+_STF_RRF_ANN = _STF_RRF_LAM -- FIXME: implement

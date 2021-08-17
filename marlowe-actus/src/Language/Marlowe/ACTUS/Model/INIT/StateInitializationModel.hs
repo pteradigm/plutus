@@ -13,6 +13,8 @@ import           Language.Marlowe.ACTUS.Model.Utility.ContractRoleSign  (contrac
 import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator (plusCycle)
 import           Language.Marlowe.ACTUS.Model.Utility.YearFraction      (yearFraction)
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
+
 r :: CR -> Double
 r = contractRoleSign
 
@@ -111,7 +113,7 @@ _INIT_LAM t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
         tmd
                 | isJust ct_MD = fromJust ct_MD
                 | otherwise    = fromJust maybeTMinus `plusCycle` (fromJust ct_PRCL)
-                                        { n = ceiling ((fromJust ct_NT) / (fromJust ct_PRNXT)) * n (fromJust ct_PRCL) }
+                                        { n = ceiling (fromJust ct_NT / fromJust ct_PRNXT) * n (fromJust ct_PRCL) }
 
         -- PRNXT
         s
@@ -121,7 +123,7 @@ _INIT_LAM t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
 
         prnxt
                 | isJust ct_PRNXT               = fromJust ct_PRNXT
-                | otherwise                     = fromJust ct_NT * (1.0 / fromIntegral ((ceiling (y _DCC s tmd (Just tmd) / y _DCC s (s `plusCycle` fromJust ct_PRCL) (Just tmd))) :: Integer))
+                | otherwise                     = fromJust ct_NT * (1.0 / fromIntegral (ceiling (y _DCC s tmd (Just tmd) / y _DCC s (s `plusCycle` fromJust ct_PRCL) (Just tmd)) :: Integer))
 
         -- IPCB
         ipcb
@@ -136,6 +138,37 @@ _INIT_LAM t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
 
 _INIT_NAM :: Day -> Day -> Day -> Day -> Day -> ContractTerms -> ContractStatePoly Double Day
 _INIT_NAM t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
+
+    let
+        _IED   = fromJust ct_IED
+        _DCC   = fromJust ct_DCC
+        _PRNXT = fromJust ct_PRNXT
+
+        -- TMD
+        maybeTMinus
+                    | isJust ct_PRANX && fromJust ct_PRANX >= t0 = ct_PRANX
+                    | (_IED `plusCycle` fromJust ct_PRCL) >= t0  = Just $ _IED `plusCycle` fromJust ct_PRCL
+                    | otherwise                                  = Just tpr_minus
+        tmd
+                | isJust ct_MD = fromJust ct_MD
+                | otherwise = fromJust maybeTMinus `plusCycle` (fromJust ct_PRCL) { n = ceiling(fromJust ct_NT / (_PRNXT - fromJust ct_NT  * y _DCC tminus (tminus `plusCycle` fromJust ct_PRCL) ct_MD * fromJust ct_IPNR))}
+
+        -- PRNXT
+        prnxt = r ct_CNTRL * _PRNXT
+
+        -- IPCB
+        ipcb
+                | t0 < _IED                     = 0.0
+                | fromJust ct_IPCB == IPCB_NT   = r ct_CNTRL * fromJust ct_NT
+                | otherwise                     = r ct_CNTRL * fromJust ct_IPCBA
+
+        pam_init = _INIT_PAM t0 tminus tfp_minus tfp_plus terms
+
+    -- All is same as PAM except PRNXT and TMD, IPCB same as LAM
+    in pam_init { prnxt = prnxt, ipcb = ipcb, tmd = tmd }
+
+_INIT_ANN :: Day -> Day -> Day -> Day -> Day -> ContractTerms -> ContractStatePoly Double Day
+_INIT_ANN t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
 
     let
         _IED   = fromJust ct_IED

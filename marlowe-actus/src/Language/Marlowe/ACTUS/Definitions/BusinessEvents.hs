@@ -1,12 +1,11 @@
 {-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DerivingStrategies #-}
-
 module Language.Marlowe.ACTUS.Definitions.BusinessEvents where
 
 import           Data.Aeson.Types (ToJSON)
-import           Data.Map
-import           Data.Time
+import           Data.Map         (Map)
+import           Data.Time        (Day)
 import           GHC.Generics     (Generic)
 
 {-| ACTUS event types
@@ -16,7 +15,6 @@ data EventType =
       AD   -- Monitoring
     | IED  -- Initial Exchange
     | PR   -- Principal Redemption
-    | PI   -- ?
     | PRF  -- Principal Payment Amount Fixing
     | PY   -- Penalty Payment
     | FP   -- Fee Payment

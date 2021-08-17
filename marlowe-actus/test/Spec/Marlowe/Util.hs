@@ -3,8 +3,8 @@
 {-# LANGUAGE DerivingStrategies    #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
@@ -59,40 +59,40 @@ termsToString = Map.map (\case
 parseObservedValues :: Map String Value -> DataObserved
 parseObservedValues =
   Map.map(\(Object valuesObserved) ->
-    let String identifier = valuesObserved HashMap.! "identifier"
-        Array values = valuesObserved HashMap.! "data"
+    let String identifier' = valuesObserved HashMap.! "identifier"
+        Array values' = valuesObserved HashMap.! "data"
     in
       ValuesObserved{
-        identifier = unpack identifier
+        identifier = unpack identifier'
       , values = Vector.toList $
           Vector.map (\(Object observedValue) ->
-            let String timestamp = observedValue HashMap.! "timestamp"
-                String value = observedValue HashMap.! "value"
+            let String timestamp' = observedValue HashMap.! "timestamp"
+                String value' = observedValue HashMap.! "value"
             in
               ValueObserved{
-                timestamp = fromJust $ parseMaybeDate $ Just $ unpack timestamp
-              , value = read (unpack value) :: Double
+                timestamp = fromJust $ parseMaybeDate $ Just $ unpack timestamp'
+              , value = read (unpack value') :: Double
               }
-          ) values
+          ) values'
       }
   )
 
 assertTestResults :: [CashFlow] -> [TestResult] -> String -> IO ()
 assertTestResults [] [] _ = return ()
-assertTestResults (cashFlow: restCash) (testResult: restTest) identifier = do
-  assertTestResult cashFlow testResult identifier
-  assertTestResults restCash restTest identifier
+assertTestResults (cashFlow: restCash) (testResult: restTest) test_identifier = do
+  assertTestResult cashFlow testResult test_identifier
+  assertTestResults restCash restTest test_identifier
 
 assertTestResult :: CashFlow -> TestResult -> String -> IO ()
 assertTestResult
-  CashFlow{cashPaymentDay = date, cashEvent = event, amount = payoff}
-  testResult@TestResult{eventDate = testDate, eventType = testEvent, payoff = testPayoff} identifier = do
-    assertBool ("[" ++ show identifier ++ "] Generated event and test event types should be the same: actual " ++ show event ++ ", expected for " ++ show testResult) $ event == (read testEvent :: EventType)
-    assertBool ("Generated date and test date should be the same: expected " ++ show testDate ++ ", actual " ++ show date ++ " in " ++ identifier) (date == (fromJust $ parseDate testDate))
-    assertBool ("[" ++ show identifier ++ "]  Generated payoff and test payoff should be the same: actual " ++ show payoff ++ ", expected for " ++ show testResult) $ (realToFrac payoff :: Float) == (realToFrac testPayoff :: Float)
+  CashFlow{cashPaymentDay = date, cashEvent = event, amount = payoff'}
+  testResult@TestResult{eventDate = testDate, eventType = testEvent, payoff = testPayoff} test_identifier = do
+    assertBool ("[" ++ show test_identifier ++ "] Generated event and test event types should be the same: actual " ++ show event ++ ", expected for " ++ show testResult) $ event == (read testEvent :: EventType)
+    assertBool ("Generated date and test date should be the same: expected " ++ show testDate ++ ", actual " ++ show date ++ " in " ++ test_identifier) (date == (fromJust $ parseDate testDate))
+    assertBool ("[" ++ show test_identifier ++ "]  Generated payoff and test payoff should be the same: actual " ++ show payoff' ++ ", expected for " ++ show testResult) $ (realToFrac payoff' :: Float) == (realToFrac testPayoff :: Float)
 
 testToContractTerms :: TestCase -> ContractTerms
-testToContractTerms TestCase{terms = terms} =
+testToContractTerms TestCase{..} =
   let terms' = termsToString terms
   in ContractTerms
      {
@@ -201,4 +201,4 @@ maybeConcatPrefix :: String -> Maybe String -> Maybe String
 maybeConcatPrefix prefix = fmap (prefix ++)
 
 maybeReplace :: String -> String -> Maybe String -> Maybe String
-maybeReplace from to = fmap (replace from to)
+maybeReplace f t = fmap (replace f t)

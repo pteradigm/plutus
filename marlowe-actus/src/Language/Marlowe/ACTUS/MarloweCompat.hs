@@ -17,8 +17,7 @@ import           Language.Marlowe.ACTUS.Ops                        (marloweFixed
 
 type EventHandlerSTF = EventType -> ContractStateMarlowe -> ContractStateMarlowe
 
-type ContractStateMarlowe
-    = ContractStatePoly (Value Observation) (Value Observation)
+type ContractStateMarlowe = ContractStatePoly (Value Observation) (Value Observation)
 
 useval :: String -> Integer -> Value Observation
 useval name t = UseValue $ ValueId $ fromString $ name ++ "_" ++ show t
@@ -94,8 +93,8 @@ cardanoEpochStart = 100
 
 dayToSlotNumber :: Day -> Integer
 dayToSlotNumber d =
-    let (MkSystemTime secs _) = utcToSystemTime (UTCTime d 0)
-    in  (fromIntegral secs) - cardanoEpochStart
+  let (MkSystemTime secs _) = utcToSystemTime (UTCTime d 0)
+  in fromIntegral secs - cardanoEpochStart
 
 marloweDate :: Day -> Value Observation
 marloweDate = Constant . fromInteger . dayToSlotNumber
