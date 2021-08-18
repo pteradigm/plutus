@@ -2,7 +2,6 @@
 
 module Language.Marlowe.ACTUS.Model.SCHED.ContractSchedule where
 
-import           Data.Maybe                                                 (fromJust, fromMaybe)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents          (EventType (FP, IED, IP, IPCB, IPCI, MD, PP, PR, PRD, PY, RR, RRF, SC, TD))
 import           Language.Marlowe.ACTUS.Definitions.ContractState           (ContractStatePoly (tmd))
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms           (CT (..), ContractTerms (..))
@@ -13,20 +12,11 @@ import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator     (inf
 
 schedule :: EventType -> ContractTerms -> Maybe [ShiftedDay]
 schedule ev ct@ContractTerms{..} =
-    let
-        _IED       = fromJust ct_IED
-        _FER       = fromMaybe 0.0 ct_FER
-        _MD        = fromJust ct_MD
-        _SCEF      = fromJust ct_SCEF
-        _PYTP      = fromJust ct_PYTP
-        _PPEF      = fromJust ct_PPEF
-
-        fpSchedule = schedule FP ct
+    let fpSchedule = schedule FP ct
         ipSchedule = schedule IP ct
         prSchedule = schedule PR ct
 
         t0         = ct_SD
-
         tminus     = maybe t0 calculationDay ((\sc -> sup sc t0) =<< ipSchedule)
         tfp_minus  = maybe t0 calculationDay ((\sc -> sup sc t0) =<< fpSchedule)
         tfp_plus   = maybe t0 calculationDay ((\sc -> inf sc t0) =<< fpSchedule)
@@ -34,71 +24,72 @@ schedule ev ct@ContractTerms{..} =
     in
       case contractType of
 
-        PAM -> case ev of
-            IED  -> _SCHED_IED_PAM scfg _IED
-            MD   -> _SCHED_MD_PAM scfg _MD
-            PP   -> _SCHED_PP_PAM scfg _PPEF ct_OPCL _IED ct_OPANX _MD
-            PY   -> _SCHED_PY_PAM scfg _PYTP _PPEF ct_OPCL _IED ct_OPANX _MD
-            FP   -> _SCHED_FP_PAM scfg _FER ct_FECL _IED ct_FEANX _MD
-            PRD  -> _SCHED_PRD_PAM scfg ct_PRD
-            TD   -> _SCHED_TD_PAM scfg ct_TD
-            IP   -> _SCHED_IP_PAM scfg ct_IPNR _IED ct_IPANX ct_IPCL ct_IPCED _MD
-            IPCI -> _SCHED_IPCI_PAM scfg _IED ct_IPANX ct_IPCL ct_IPCED _MD ct_IPNR
-            RR   -> _SCHED_RR_PAM scfg _IED ct_SD ct_RRANX ct_RRCL ct_RRNXT _MD
-            RRF  -> _SCHED_RRF_PAM scfg _IED ct_RRANX ct_RRCL _MD
-            SC   -> _SCHED_SC_PAM scfg _IED _SCEF ct_SCANX ct_SCCL _MD
+        PAM -> let _MD = ct_MD
+          in case ev of
+            IED  -> _SCHED_IED_PAM ct
+            MD   -> _SCHED_MD_PAM ct { ct_MD = _MD }
+            PP   -> _SCHED_PP_PAM ct
+            PY   -> _SCHED_PY_PAM ct
+            FP   -> _SCHED_FP_PAM ct
+            PRD  -> _SCHED_PRD_PAM ct
+            TD   -> _SCHED_TD_PAM ct
+            IP   -> _SCHED_IP_PAM ct
+            IPCI -> _SCHED_IPCI_PAM ct
+            RR   -> _SCHED_RR_PAM ct
+            RRF  -> _SCHED_RRF_PAM ct
+            SC   -> _SCHED_SC_PAM ct
             _    -> Nothing
 
-        LAM -> let _tmd = tmd $ _INIT_LAM ct_SD tminus tpr_minus tfp_minus tfp_plus ct
+        LAM -> let _MD = Just . tmd $ _INIT_LAM ct_SD tminus tpr_minus tfp_minus tfp_plus ct
           in case ev of
-            IED  -> _SCHED_IED_PAM scfg _IED
-            PR   -> _SCHED_PR_LAM scfg ct_PRCL _IED ct_PRANX _tmd
-            MD   -> _SCHED_MD_LAM scfg _tmd
-            PP   -> _SCHED_PP_PAM scfg _PPEF ct_OPCL _IED ct_OPANX _tmd
-            PY   -> _SCHED_PY_PAM scfg _PYTP _PPEF ct_OPCL _IED ct_OPANX _tmd
-            FP   -> _SCHED_FP_PAM scfg _FER ct_FECL _IED ct_FEANX _tmd
-            PRD  -> _SCHED_PRD_PAM scfg ct_PRD
-            TD   -> _SCHED_TD_PAM scfg ct_TD
-            IP   -> _SCHED_IP_PAM scfg ct_IPNR _IED ct_IPANX ct_IPCL ct_IPCED _tmd
-            IPCI -> _SCHED_IPCI_PAM scfg _IED ct_IPANX ct_IPCL ct_IPCED _MD ct_IPNR
-            IPCB -> _SCHED_IPCB_LAM scfg _IED ct_IPCB ct_IPCBCL ct_IPCBANX _tmd
-            RR   -> _SCHED_RR_PAM scfg _IED ct_SD ct_RRANX ct_RRCL ct_RRNXT _tmd
-            RRF  -> _SCHED_RRF_PAM scfg _IED ct_RRANX ct_RRCL _tmd
-            SC   -> _SCHED_SC_PAM scfg _IED _SCEF ct_SCANX ct_SCCL _tmd
+            IED  -> _SCHED_IED_PAM ct
+            PR   -> _SCHED_PR_LAM ct { ct_MD = _MD }
+            MD   -> _SCHED_MD_LAM ct { ct_MD = _MD }
+            PP   -> _SCHED_PP_PAM ct { ct_MD = _MD }
+            PY   -> _SCHED_PY_PAM ct { ct_MD = _MD }
+            FP   -> _SCHED_FP_PAM ct { ct_MD = _MD }
+            PRD  -> _SCHED_PRD_PAM ct
+            TD   -> _SCHED_TD_PAM ct
+            IP   -> _SCHED_IP_PAM ct { ct_MD = _MD }
+            IPCI -> _SCHED_IPCI_PAM ct
+            IPCB -> _SCHED_IPCB_LAM ct { ct_MD = _MD}
+            RR   -> _SCHED_RR_PAM ct { ct_MD = _MD }
+            RRF  -> _SCHED_RRF_PAM ct { ct_MD = _MD }
+            SC   -> _SCHED_SC_PAM ct { ct_MD = _MD }
             _    -> Nothing
 
-        NAM -> let _tmd = tmd $ _INIT_NAM ct_SD tminus tpr_minus tfp_minus tfp_plus ct
+        NAM -> let _MD = Just . tmd $ _INIT_NAM ct_SD tminus tpr_minus tfp_minus tfp_plus ct
           in case ev of
-            IED  -> _SCHED_IED_PAM scfg _IED
-            PR   -> _SCHED_PR_LAM scfg ct_PRCL _IED ct_PRANX _tmd
-            MD   -> _SCHED_MD_PAM scfg _tmd
-            PP   -> _SCHED_PP_PAM scfg _PPEF ct_OPCL _IED ct_OPANX _tmd
-            PY   -> _SCHED_PY_PAM scfg _PYTP _PPEF ct_OPCL _IED ct_OPANX _tmd
-            FP   -> _SCHED_FP_PAM scfg _FER ct_FECL _IED ct_FEANX _tmd
-            PRD  -> _SCHED_PRD_PAM scfg ct_PRD
-            TD   -> _SCHED_TD_PAM scfg ct_TD
-            IP   -> _SCHED_IP_NAM scfg ct_IED ct_PRCL ct_PRANX ct_IPCED ct_IPANX ct_IPCL (Just _tmd)
-            IPCI -> _SCHED_IPCI_PAM scfg _IED ct_IPANX ct_IPCL ct_IPCED _MD ct_IPNR
-            IPCB -> _SCHED_IPCB_LAM scfg _IED ct_IPCB ct_IPCBCL ct_IPCBANX _tmd
-            RR   -> _SCHED_RR_PAM scfg _IED ct_SD ct_RRANX ct_RRCL ct_RRNXT _tmd
-            RRF  -> _SCHED_RRF_PAM scfg _IED ct_RRANX ct_RRCL _tmd
-            SC   -> _SCHED_SC_PAM scfg _IED _SCEF ct_SCANX ct_SCCL _tmd
+            IED  -> _SCHED_IED_PAM ct
+            PR   -> _SCHED_PR_LAM ct { ct_MD = _MD }
+            MD   -> _SCHED_MD_PAM ct { ct_MD = _MD }
+            PP   -> _SCHED_PP_PAM ct { ct_MD = _MD }
+            PY   -> _SCHED_PY_PAM ct { ct_MD = _MD }
+            FP   -> _SCHED_FP_PAM ct { ct_MD = _MD }
+            PRD  -> _SCHED_PRD_PAM ct
+            TD   -> _SCHED_TD_PAM ct
+            IP   -> _SCHED_IP_NAM ct { ct_MD = _MD }
+            IPCI -> _SCHED_IPCI_PAM ct
+            IPCB -> _SCHED_IPCB_LAM ct { ct_MD = _MD}
+            RR   -> _SCHED_RR_PAM ct { ct_MD = _MD }
+            RRF  -> _SCHED_RRF_PAM ct { ct_MD = _MD }
+            SC   -> _SCHED_SC_PAM ct { ct_MD = _MD }
             _    -> Nothing
 
-        ANN -> let _tmd = tmd $ _INIT_ANN ct_SD tminus tpr_minus tfp_minus tfp_plus ct
+        ANN -> let _MD = Just . tmd $ _INIT_ANN ct_SD tminus tpr_minus tfp_minus tfp_plus ct
           in case ev of
-            IED  -> _SCHED_IED_PAM scfg _IED
-            PR   -> _SCHED_PR_LAM scfg ct_PRCL _IED ct_PRANX _tmd
-            MD   -> _SCHED_MD_PAM scfg _MD
-            PP   -> _SCHED_PP_PAM scfg _PPEF ct_OPCL _IED ct_OPANX _MD
-            PY   -> _SCHED_PY_PAM scfg _PYTP _PPEF ct_OPCL _IED ct_OPANX _MD
-            FP   -> _SCHED_FP_PAM scfg _FER ct_FECL _IED ct_FEANX _MD
-            PRD  -> _SCHED_PRD_PAM scfg ct_PRD
-            TD   -> _SCHED_TD_PAM scfg ct_TD
-            IP   -> _SCHED_IP_NAM scfg ct_IED ct_PRCL ct_PRANX ct_IPCED ct_IPANX ct_IPCL (Just _tmd)
-            IPCI -> _SCHED_IPCI_PAM scfg _IED ct_IPANX ct_IPCL ct_IPCED _MD ct_IPNR
-            IPCB -> _SCHED_IPCB_LAM scfg _IED ct_IPCB ct_IPCBCL ct_IPCBANX _tmd
-            RR   -> _SCHED_RR_PAM scfg _IED ct_SD ct_RRANX ct_RRCL ct_RRNXT _MD
-            RRF  -> _SCHED_RRF_PAM scfg _IED ct_RRANX ct_RRCL _MD
-            SC   -> _SCHED_SC_PAM scfg _IED _SCEF ct_SCANX ct_SCCL _MD
+            IED  -> _SCHED_IED_PAM ct
+            PR   -> _SCHED_PR_LAM ct { ct_MD = _MD }
+            MD   -> _SCHED_MD_PAM ct { ct_MD = _MD }
+            PP   -> _SCHED_PP_PAM ct { ct_MD = _MD }
+            PY   -> _SCHED_PY_PAM ct { ct_MD = _MD }
+            FP   -> _SCHED_FP_PAM ct { ct_MD = _MD }
+            PRD  -> _SCHED_PRD_PAM ct
+            TD   -> _SCHED_TD_PAM ct
+            IP   -> _SCHED_IP_NAM ct { ct_MD = _MD }
+            IPCI -> _SCHED_IPCI_PAM ct
+            IPCB -> _SCHED_IPCB_LAM ct { ct_MD = _MD }
+            RR   -> _SCHED_RR_PAM ct
+            RRF  -> _SCHED_RRF_PAM ct
+            SC   -> _SCHED_SC_PAM ct
             _    -> Nothing
