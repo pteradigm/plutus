@@ -16,11 +16,8 @@ import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator (generat
 
 -- Principal at Maturity (PAM)
 
-_S :: Day -> Cycle -> Day -> ScheduleConfig -> ShiftedSchedule
-_S = generateRecurrentScheduleWithCorrections
-
-_S' :: Maybe Day -> Maybe Cycle -> Maybe Day -> Maybe ScheduleConfig -> Maybe ShiftedSchedule
-_S' = liftM4 generateRecurrentScheduleWithCorrections
+_S :: Maybe Day -> Maybe Cycle -> Maybe Day -> Maybe ScheduleConfig -> Maybe ShiftedSchedule
+_S = liftM4 generateRecurrentScheduleWithCorrections
 
 shift :: ScheduleConfig -> Day -> ShiftedDay
 shift = applyBDCWithCfg
@@ -37,7 +34,7 @@ _SCHED_PP_PAM ContractTerms{..} =
   let s  | isNothing ct_OPANX && isNothing ct_OPCL = Nothing
          | isNothing ct_OPANX                      = liftA2 plusCycle ct_IED ct_OPCL
          | otherwise                               = ct_OPANX
-   in _S' s ct_OPCL ct_MD (Just scfg)
+   in _S s ct_OPCL ct_MD (Just scfg)
 
 _SCHED_PY_PAM :: ContractTerms -> Maybe ShiftedSchedule
 _SCHED_PY_PAM ContractTerms{..} | ct_PYTP == Just PYTP_O = Nothing
@@ -50,7 +47,7 @@ _SCHED_FP_PAM ContractTerms{..} =
            | otherwise                               = ct_FEANX
 
         r  | ct_FER == Just 0.0                      = Nothing
-           | otherwise                               = _S' s ((\ct' -> ct' {includeEndDay = True}) <$> ct_FECL) ct_MD (Just scfg)
+           | otherwise                               = _S s ((\ct' -> ct' {includeEndDay = True}) <$> ct_FECL) ct_MD (Just scfg)
     in r
 
 _SCHED_PRD_PAM :: ContractTerms -> Maybe [ShiftedDay]
@@ -68,7 +65,7 @@ _SCHED_IP_PAM ContractTerms{..} =
           | otherwise                               = ct_IPANX
 
         result  | isNothing ct_IPNR                 = Nothing
-                | otherwise                         = _S' s ((\ct' -> ct' {includeEndDay = True }) <$> ct_IPCL) ct_MD (Just scfg)
+                | otherwise                         = _S s ((\ct' -> ct' {includeEndDay = True }) <$> ct_IPCL) ct_MD (Just scfg)
 
         result' | isJust result && isJust ct_IPCED  = filter (\d -> Just (calculationDay d) > ct_IPCED) <$> result
                 | otherwise                         = result
@@ -82,7 +79,7 @@ _SCHED_IPCI_PAM ContractTerms{..} =
           | otherwise                               = ct_IPANX
 
         schedIP | isNothing ct_IPNR                 = Nothing
-                | otherwise                         = _S' s ((\ct' -> ct' { includeEndDay = True }) <$> ct_IPCL) ct_MD (Just scfg)
+                | otherwise                         = _S s ((\ct' -> ct' { includeEndDay = True }) <$> ct_IPCL) ct_MD (Just scfg)
 
         result  | isJust ct_IPCL && isJust ct_IPCED = let a = filter (\d -> Just (calculationDay d) < ct_IPCED) <$> schedIP
                                                           b = (:[]) <$> liftA2 shift (Just scfg) ct_IPCED
@@ -95,7 +92,7 @@ _SCHED_RR_PAM ContractTerms{..} =
     let s | isNothing ct_RRANX = liftA2 plusCycle ct_IED ct_RRCL
           | otherwise          = ct_RRANX
 
-        tt   = _S' s ((\ct' -> ct' { includeEndDay = True }) <$> ct_RRCL) ct_MD (Just scfg)
+        tt   = _S s ((\ct' -> ct' { includeEndDay = True }) <$> ct_RRCL) ct_MD (Just scfg)
         trry = join $ liftA2 inf tt (Just ct_SD)
 
         result | isNothing ct_RRANX && isNothing ct_RRCL = Nothing
@@ -108,7 +105,7 @@ _SCHED_RRF_PAM ContractTerms {..} =
     let s | isNothing ct_RRANX = liftA2 plusCycle ct_IED ct_RRCL
           | otherwise          = ct_RRANX
 
-        tt = _S' s ct_RRCL ct_MD (Just scfg)
+        tt = _S s ct_RRCL ct_MD (Just scfg)
 
         result | isNothing ct_RRANX && isNothing ct_RRCL = Nothing
                | otherwise                               = tt
@@ -120,7 +117,7 @@ _SCHED_SC_PAM ContractTerms{..} =
           | isNothing ct_SCANX                      = liftA2 plusCycle ct_IED ct_SCCL
           | otherwise                               = ct_SCANX
 
-        tt = _S' s ((\ct' -> ct' { includeEndDay = True }) <$> ct_SCCL) ct_MD (Just scfg)
+        tt = _S s ((\ct' -> ct' { includeEndDay = True }) <$> ct_SCCL) ct_MD (Just scfg)
 
         result | ct_SCEF == Just SE_000 = Nothing
                | otherwise             = tt
@@ -133,7 +130,7 @@ _SCHED_PR_LAM ContractTerms{..} =
     let s | isNothing ct_PRANX && isNothing ct_PRCL = Nothing
           | isNothing ct_PRANX                      = liftA2 plusCycle ct_IED ct_PRCL
           | otherwise                               = ct_PRANX
-    in _S' s ct_PRCL ct_MD (Just scfg)
+    in _S s ct_PRCL ct_MD (Just scfg)
 
 _SCHED_MD_LAM :: ContractTerms -> Maybe [ShiftedDay]
 _SCHED_MD_LAM ContractTerms{..} = (:[]) <$> liftA2 shift (Just scfg) ct_MD
@@ -145,7 +142,7 @@ _SCHED_IPCB_LAM ContractTerms{..} =
           | otherwise                                   = ct_IPCBANX
 
         result | ct_IPCB /= Just IPCB_NTL = Nothing -- This means that IPCB != 'NTL', since there is no cycle
-               | otherwise                = _S' s ct_IPCBCL ct_MD (Just scfg)
+               | otherwise                = _S s ct_IPCBCL ct_MD (Just scfg)
     in result
 
 -- Negative Amortizer (NAM)
@@ -164,8 +161,8 @@ _SCHED_IP_NAM ContractTerms{..} =
 
         u       | isNothing ct_IPANX && isNothing ct_IPCL                         = Nothing
                 | isJust ct_IPCED    && fromMaybe False (liftA2 (>=) ct_IPCED _T) = Nothing
-                | otherwise                                                       = _S' r ct_IPCL ct_MD (Just scfg)
+                | otherwise                                                       = _S r ct_IPCL ct_MD (Just scfg)
 
-        v       = _S' s ct_PRCL ct_MD (Just scfg)
+        v       = _S s ct_PRCL ct_MD (Just scfg)
 
     in liftA2 (++) u v
