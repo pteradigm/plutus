@@ -2,12 +2,12 @@
 
 module Language.Marlowe.ACTUS.Model.STF.StateTransition where
 
-import           Data.Maybe                                             (fromJust)
+import           Data.Maybe                                             (fromJust, fromMaybe)
 import           Data.Time                                              (Day)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents      (EventType (..), RiskFactors (..))
 
 import           Language.Marlowe.ACTUS.Definitions.ContractState       (ContractState,
-                                                                         ContractStatePoly (ContractStatePoly, fac, feac, ipac, ipcb, ipnr, isc, nsc, nt, prf, prnxt, sd, tmd))
+                                                                         ContractStatePoly (ContractStatePoly, feac, ipac, ipcb, ipnr, isc, nsc, nt, prf, prnxt, sd, tmd))
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (CT (..), ContractTerms (..), ScheduleConfig)
 import           Language.Marlowe.ACTUS.Definitions.Schedule            (ShiftedDay (calculationDay))
 import           Language.Marlowe.ACTUS.Model.SCHED.ContractSchedule    (schedule)
@@ -25,7 +25,7 @@ stateTransition :: EventType -> RiskFactors -> ContractTerms -> ContractState ->
 stateTransition ev RiskFactors{..} ct@ContractTerms{..} st@ContractStatePoly{..} t =
     let
         _DCC               = fromJust ct_DCC
-        _FER               = fromJust ct_FER
+        _FER               = fromMaybe 0.0 ct_FER
         _RRLF              = fromJust ct_RRLF
         _RRLC              = fromJust ct_RRLC
         _RRPC              = fromJust ct_RRPC
