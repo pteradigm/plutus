@@ -4,6 +4,7 @@ module PlutusIR.Transform.NewLetFloat where
 
 import           Control.Lens            hiding (Strict)
 import           Control.Monad.Reader
+import           Data.Bifunctor
 import           Data.Coerce
 import qualified Data.List.NonEmpty      as NE
 import qualified Data.Map                as M
@@ -12,6 +13,7 @@ import           Data.Set                (Set, (\\))
 import           Data.Traversable
 import           GHC.Exts
 import qualified PlutusCore              as PLC
+import           PlutusCore.Name
 import qualified PlutusCore.Name         as PLC
 import           PlutusIR
 import           PlutusIR.Core.Plated
@@ -24,9 +26,10 @@ representativeBinding = NE.head
 -- this is used for two purposes
 -- 1) to mark the max-position of a var in scope
 -- 2) add lambdas
-type Env = M.Map PLC.Unique Pos
+type Scope = M.Map PLC.Unique Pos
 
--- a position is not just the lambda-depth level because we act globally, it is also the unique of lambda/Lambda
+type MarkCtx = (Depth, Scope)
+
 type Pos = (Depth, PLC.Unique)
 type Depth = Int
 
@@ -36,32 +39,35 @@ type LetHoled tyname name uni fun a = (a, Recursivity, NE.NonEmpty (Binding tyna
 
 
 mark :: Term TyName Name uni fun a -> Marks
-mark t = runReader (go t) mempty
+mark t = runReader (go t) (topDepth, mempty)
     where
-      go :: Term TyName Name uni fun a -> Reader Env Marks
+      go :: Term TyName Name uni fun a -> Reader MarkCtx Marks
       go = \case
-          LamAbs _ n _ tBody  -> withLam (n^.PLC.theUnique) $ go tBody
-          TyAbs _ n _ tBody   -> withLam (n^.PLC.theUnique) $ go tBody
+          LamAbs _ n _ tBody  -> withLam n $ go tBody
+          TyAbs _ n _ tBody   -> withLam n $ go tBody
           -- breaks down the NonRec true-groups
           Let a NonRec bs tIn | length bs > 1 ->
                                 mconcat . NE.toList <$> for bs (\ b -> go (Let a NonRec (pure b) tIn))
           l@(Let _ r bs tIn) ->
+            let letU = head $ representativeBinding bs^..bindingIds
+            in
               if unmovable l
               then do
-                  -- since it is unmovable, the floatpos is the max pos, which is the enclosing l/Lam
-                  pos <- maxPos <$> ask
-                  marked1 <- (if isRec r then withBs bs pos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
-                  marked2 <- withBs bs pos $ go tIn
+                  -- since it is unmovable, the floatpos is a new anchor
+                  (d, _) <- ask
+                  let pos = (d+1, letU)
+                  marked1 <- (if isRec r then withDepth (+1) . withBs bs pos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
+                  marked2 <- withDepth (+1) $ withBs bs pos $ go tIn
                   -- don't add any marks
                   pure $ marked1 <> marked2
               else do
-                  env <- ask
-                  let freeVars = (if isRec r then  (\\ fromList (bs^..traversed.bindingIds)) else id) $ calcFreeVars l env
-                      pos =  maxPos $ M.restrictKeys env freeVars
-                  marks1 <- (if isRec r then withBs bs pos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
-                  marks2 <- withBs bs pos $ go tIn
+                  (_,scope) <- ask
+                  let freeVars = (if isRec r then  (\\ fromList (bs^..traversed.bindingIds)) else id) $ calcFreeVars l scope
+                      newPos@(newD,_) =  maxPos $ M.restrictKeys scope freeVars
+                  marks1 <- (if isRec r then withDepth (const newD) . withBs bs newPos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
+                  marks2 <- withBs bs newPos $ go tIn
                   -- add here a new mark
-                  pure $ M.singleton (head $ representativeBinding bs^..bindingIds) pos <> marks1 <> marks2
+                  pure $ M.singleton letU newPos <> marks1 <> marks2
           t' -> mconcat <$> traverse go (t'^..termSubterms)
 
 calcFreeVars :: (PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.TermUnique) => Term tyname name uni fun ann
@@ -69,6 +75,7 @@ calcFreeVars :: (PLC.HasUnique tyname PLC.TypeUnique, PLC.HasUnique name PLC.Ter
 calcFreeVars t env = fromList (t^..termUniquesDeep) \\ M.keysSet env
 
 
+-- only unique based, slow but more flexible
 removeLets :: Marks -> Term TyName Name uni fun a -> (M.Map Pos (NE.NonEmpty (LetHoled TyName Name uni fun a)) -- letterms
                             , Term TyName Name uni fun a)
 removeLets ms = go
@@ -76,6 +83,7 @@ removeLets ms = go
       go = \case
           -- break down let nonrec true group
           Let a NonRec (b NE.:| bs) tIn | not (null bs) ->
+                -- TODO: downside, I break down nonrec true-groups here, use the let to
                 go (Let a NonRec (pure b) $ Let a NonRec (fromList bs) tIn)
           Let a r@Rec bs tIn ->
               let
@@ -98,10 +106,11 @@ floatBackLets :: -- | remove result
               -> Term TyName Name uni fun a
 floatBackLets (letholesTable,t) =
     -- toplevel lets
-    maybe id mergeLetsIn (M.lookup (0,topUnique) letholesTable) $ runReader (go t) 0
+    maybe id mergeLetsIn (M.lookup (topDepth, topUnique) letholesTable) $ runReader (go t) topDepth
     where go = \case
               LamAbs a n ty tBody -> goLam (LamAbs a n ty) (n^.PLC.theUnique) tBody
               TyAbs a n k tBody   -> goLam (TyAbs a n k) (n^.PLC.theUnique) tBody
+              -- TODO: an unmovable let
               t'                  -> t' & termSubterms go
 
           goLam k u tBody = local (+1) $ do
@@ -131,9 +140,10 @@ floatTerm t = floatBackLets $ removeLets (mark t) t
 -- dep.resolution does not necessarily need depgraph,scc,topsort, it can be done by an extra int dep inside the Marks
 -- change unmovable to allow moving of strict-pure
 -- Skip marking big Lambdas which as outlined in the paper
+-- parameterization: unmovable,nofulllaziness
 
 -- OPTIMIZE:
--- recursive descend for removelets, floatbacklets does not shrink search space; fix: keep a state
+-- recursive descend for removelets, floatbacklets does not shrink search space; fix: keep a state, and will help as a safeguard check for left-out floatings
 -- use some better/safer free-vars calculation?
 -- keep an extra depth reader in mark pass, instead of relying on maxPos for l/Lambdas
 
@@ -143,15 +153,20 @@ floatTerm t = floatBackLets $ removeLets (mark t) t
 topUnique :: PLC.Unique
 topUnique = coerce (-1 :: Int)
 
-maxDepth env = fst $ maxPos env
-maxPos env = foldl max (0, topUnique) $ M.elems env
+topDepth :: Depth
+topDepth = -1
 
-withLam lamInt = local $ \ env ->
-                            let lamPos = (maxDepth env + 1, lamInt)
-                            in M.insert lamInt lamPos env
+maxPos env = foldl max (topDepth, topUnique) $ M.elems env
 
-withBs bs pos = local $ \ env -> M.fromList [(bid,pos) | bid <- bs^..traversed.bindingIds]
-                                <> env
+withLam n = local $ \ (d, scope) ->
+    let u = n^.theUnique
+        d' = d+1
+        pos' = (d', u)
+    in (d', M.insert u pos' scope)
+
+withDepth f = local (first f)
+
+withBs bs pos = local $ second (M.fromList [(bid,pos) | bid <- bs^..traversed.bindingIds] <>)
 
 unmovable (Let _ NonRec (b  NE.:|[]) _) = isStrictBinding b
 unmovable (Let _ Rec bs _)              = any isStrictBinding bs
