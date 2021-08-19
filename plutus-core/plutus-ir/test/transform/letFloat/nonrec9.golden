@@ -5,5 +5,5 @@
     (vardecl a (con integer))
     [ [ (builtin addInteger) (con integer 1) ] (con integer 1) ]
   )
-  (let (nonrec) (termbind (nonstrict) (vardecl b (con integer)) a) b)
+  (let (rec) (termbind (nonstrict) (vardecl b (con integer)) a) b)
 )

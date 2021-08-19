@@ -93,6 +93,9 @@ letFloat =
   ,"strictValueValue"
   ,"even3Eval"
   ,"strictNonValueDeep"
+  ,"letrhs1"
+  , "new1"
+  , "new2"
   ]
  where
    pirtcconfig :: PirTCConfig PLC.DefaultUni PLC.DefaultFun

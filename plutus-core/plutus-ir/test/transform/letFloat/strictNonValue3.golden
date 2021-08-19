@@ -2,7 +2,7 @@
   x
   (con integer)
   (let
-    (nonrec)
+    (rec)
     (termbind
       (nonstrict)
       (vardecl i (con integer))

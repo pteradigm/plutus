@@ -3,19 +3,9 @@
   (termbind
     (nonstrict)
     (vardecl y (con integer))
-    [
-      (lam
-        h
-        (con integer)
-        (let
-          (nonrec)
-          (termbind (nonstrict) (vardecl z (con integer)) y)
-          [ [ (builtin addInteger) z ] h ]
-        )
-      )
-      (con integer 4)
-    ]
+    [ (lam h (con integer) [ [ (builtin addInteger) z ] h ]) (con integer 4) ]
   )
+  (termbind (nonstrict) (vardecl z (con integer)) y)
   (let
     (rec)
     (termbind
