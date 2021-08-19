@@ -92,7 +92,7 @@ _SCHED_RR_PAM ContractTerms{..} =
     let s | isNothing ct_RRANX = liftA2 plusCycle ct_IED ct_RRCL
           | otherwise          = ct_RRANX
 
-        tt   = _S s ((\ct' -> ct' { includeEndDay = True }) <$> ct_RRCL) ct_MD (Just scfg)
+        tt   = _S s ((\ct' -> ct' { includeEndDay = False }) <$> ct_RRCL) ct_MD (Just scfg)
         trry = join $ liftA2 inf tt (Just ct_SD)
 
         result | isNothing ct_RRANX && isNothing ct_RRCL = Nothing
