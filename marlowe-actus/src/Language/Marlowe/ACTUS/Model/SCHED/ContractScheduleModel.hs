@@ -117,7 +117,7 @@ _SCHED_SC_PAM ContractTerms{..} =
         tt = _S s ((\ct' -> ct' { includeEndDay = True }) <$> ct_SCCL) ct_MD (Just scfg)
 
         result | ct_SCEF == Just SE_000 = Nothing
-               | otherwise             = tt
+               | otherwise              = tt
     in result
 
 -- Linear Amortizer (LAM)
@@ -158,7 +158,7 @@ _SCHED_IP_NAM ContractTerms{..} =
 
         u | isNothing ct_IPANX && isNothing ct_IPCL                         = Nothing
           | isJust ct_IPCED    && fromMaybe False (liftA2 (>=) ct_IPCED _T) = Nothing
-          | otherwise                                                       = _S r ct_IPCL ct_MD (Just scfg)
+          | otherwise                                                       = _S r ct_IPCL _T (Just scfg)
 
         v = _S s ct_PRCL ct_MD (Just scfg)
 
