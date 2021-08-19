@@ -175,6 +175,10 @@ data Assertion = NpvAssertionAgainstZeroRiskBond
 
 {-| ACTUS contract terms and attributes are defined in
     https://github.com/actusfrf/actus-dictionary/blob/master/actus-dictionary-terms.json
+
+    The ACTUS specification handles values implicitly optional, see the ∅ - Operator. Therefore
+    the fields of the data type definition are almost all declared as Maybe types, i.e. explicitly
+    optional.
 -}
 data ContractTerms = ContractTerms
   { -- General

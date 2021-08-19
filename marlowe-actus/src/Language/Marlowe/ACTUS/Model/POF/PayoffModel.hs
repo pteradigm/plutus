@@ -24,8 +24,8 @@ _POF_PY_PAM PYTP_I o_rf_CURS o_rf_RRMO _PYRT _cPYRT _CNTRL nt ipnr y_sd_t = let 
 _POF_PY_PAM PYTP_O _         _         _PYRT _cPYRT _CNTRL _  _    _      = undefined -- FIXME: Ask Nils
 
 _POF_FP_PAM :: (RoleSignOps a, ActusNum a) => FEB -> a -> a -> CR -> a -> a -> a -> a
-_POF_FP_PAM FEB_A _FER o_rf_CURS _CNTRL _  _   _      = _r _CNTRL * o_rf_CURS * _FER
-_POF_FP_PAM FEB_N _FER o_rf_CURS _CNTRL nt fac y_sd_t = o_rf_CURS * _FER * y_sd_t * nt * fac
+_POF_FP_PAM FEB_A _FER o_rf_CURS _CNTRL _  _   _       = _r _CNTRL * o_rf_CURS * _FER
+_POF_FP_PAM FEB_N _FER o_rf_CURS _CNTRL nt feac y_sd_t = o_rf_CURS * _FER * y_sd_t * nt * feac
 
 _POF_PRD_PAM :: (ActusNum a, ActusOps a, RoleSignOps a) => a -> CR -> a -> a -> a -> a -> a -> a
 _POF_PRD_PAM o_rf_CURS _CNTRL _PPRD ipac ipnr nt y_sd_t = _zero - o_rf_CURS * _r _CNTRL * (_PPRD + ipac + y_sd_t * ipnr * nt)

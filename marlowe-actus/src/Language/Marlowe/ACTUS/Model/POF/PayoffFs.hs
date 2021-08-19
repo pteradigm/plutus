@@ -32,7 +32,6 @@ payoffFs ev ContractTerms{..} t t_minus prevDate curDate =
         _isc             = useval "isc" t_minus
         _ipac            = useval "ipac" t_minus
         _feac            = useval "feac" t_minus
-        _fac             = useval "fac" t_minus
         _ipnr            = useval "ipnr" t_minus
         _ipcb            = useval "ipcb" t_minus
         _prnxt           = useval "prnxt" t_minus
@@ -46,7 +45,7 @@ payoffFs ev ContractTerms{..} t t_minus prevDate curDate =
                 MD  -> Just $ _POF_MD_PAM _o_rf_CURS _nsc _nt _isc _ipac _feac
                 PP  -> Just $ _POF_PP_PAM _o_rf_CURS _pp_payoff
                 PY  -> Just $ _POF_PY_PAM _PYTP _o_rf_CURS _o_rf_RRMO _PYRT _cPYRT ct_CNTRL _nt _ipnr y_sd_t
-                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _fac y_sd_t
+                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _feac y_sd_t
                 PRD -> Just $ _POF_PRD_PAM _o_rf_CURS ct_CNTRL _PPRD _ipac _ipnr _nt y_sd_t
                 TD  -> Just $ _POF_TD_PAM _o_rf_CURS ct_CNTRL _PTD _ipac _ipnr _nt y_sd_t
                 IP  -> Just $ _POF_IP_PAM _o_rf_CURS _isc _ipac _ipnr _nt y_sd_t
@@ -58,7 +57,7 @@ payoffFs ev ContractTerms{..} t t_minus prevDate curDate =
                 MD  -> Just $ _POF_MD_PAM _o_rf_CURS _nsc _nt _isc _ipac _feac
                 PP  -> Just $ _POF_PP_PAM _o_rf_CURS _pp_payoff
                 PY  -> Just $ _POF_PY_PAM _PYTP _o_rf_CURS _o_rf_RRMO _PYRT _cPYRT ct_CNTRL _nt _ipnr y_sd_t
-                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _fac y_sd_t
+                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _feac y_sd_t
                 PRD -> Just $ _POF_PRD_LAM _o_rf_CURS ct_CNTRL _PPRD _ipac _ipnr _ipcb y_sd_t
                 TD  -> Just $ _POF_TD_LAM _o_rf_CURS ct_CNTRL _PTD _ipac _ipnr _ipcb y_sd_t
                 IP  -> Just $ _POF_IP_LAM _o_rf_CURS _isc _ipac _ipnr _ipcb y_sd_t
@@ -70,7 +69,7 @@ payoffFs ev ContractTerms{..} t t_minus prevDate curDate =
                 MD  -> Just $ _POF_MD_PAM _o_rf_CURS _nsc _nt _isc _ipac _feac
                 PP  -> Just $ _POF_PP_PAM _o_rf_CURS _pp_payoff
                 PY  -> Just $ _POF_PY_PAM _PYTP _o_rf_CURS _o_rf_RRMO _PYRT _cPYRT ct_CNTRL _nt _ipnr y_sd_t
-                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _fac y_sd_t
+                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _feac y_sd_t
                 PRD -> Just $ _POF_PRD_LAM _o_rf_CURS ct_CNTRL _PPRD _ipac _ipnr _ipcb y_sd_t
                 TD  -> Just $ _POF_TD_LAM _o_rf_CURS ct_CNTRL _PTD _ipac _ipnr _ipcb y_sd_t
                 IP  -> Just $ _POF_IP_LAM _o_rf_CURS _isc _ipac _ipnr _ipcb y_sd_t
@@ -82,7 +81,7 @@ payoffFs ev ContractTerms{..} t t_minus prevDate curDate =
                 MD  -> Just $ _POF_MD_PAM _o_rf_CURS _nsc _nt _isc _ipac _feac
                 PP  -> Just $ _POF_PP_PAM _o_rf_CURS _pp_payoff
                 PY  -> Just $ _POF_PY_PAM _PYTP _o_rf_CURS _o_rf_RRMO _PYRT _cPYRT ct_CNTRL _nt _ipnr y_sd_t
-                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _fac y_sd_t
+                FP  -> Just $ _POF_FP_PAM _FEB _FER _o_rf_CURS ct_CNTRL _nt _feac y_sd_t
                 PRD -> Just $ _POF_PRD_LAM _o_rf_CURS ct_CNTRL _PPRD _ipac _ipnr _ipcb y_sd_t
                 TD  -> Just $ _POF_TD_LAM _o_rf_CURS ct_CNTRL _PTD _ipac _ipnr _ipcb y_sd_t
                 IP  -> Just $ _POF_IP_LAM _o_rf_CURS _isc _ipac _ipnr _ipcb y_sd_t

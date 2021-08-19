@@ -17,13 +17,12 @@ import           Language.Marlowe.ACTUS.Definitions.ContractTerms      (Assertio
 import           Language.Marlowe.ACTUS.Definitions.Schedule           (CashFlow (..), ShiftedDay (..), calculationDay,
                                                                         paymentDay)
 import           Language.Marlowe.ACTUS.MarloweCompat                  (constnt, useval)
-import           Language.Marlowe.ACTUS.Model.INIT.StateInitialization (inititializeState)
+import           Language.Marlowe.ACTUS.Model.INIT.StateInitialization (initializeState)
 import           Language.Marlowe.ACTUS.Model.POF.Payoff               (payoff)
 import           Language.Marlowe.ACTUS.Model.SCHED.ContractSchedule   (schedule)
 import           Language.Marlowe.ACTUS.Model.STF.StateTransition      (stateTransition)
 import           Language.Marlowe.ACTUS.Ops                            (ActusNum (..), YearFractionOps (_y))
 import           Prelude                                               hiding (Fractional, Num, (*), (+), (-), (/))
-
 
 genProjectedCashflows :: DataObserved -> ContractTerms -> [CashFlow]
 genProjectedCashflows o = snd . sampleCashflows o
@@ -58,7 +57,7 @@ sampleCashflows dataObserved ct@ContractTerms{..} =
                  | otherwise    = events'
 
         -- states
-        initialState = (inititializeState ct, AD, ShiftedDay ct_SD ct_SD)
+        initialState = (initializeState ct, AD, ShiftedDay ct_SD ct_SD)
         states       = L.tail $ L.scanl applyStateTransition initialState events''
 
         -- needed for PAM

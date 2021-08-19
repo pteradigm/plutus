@@ -3,7 +3,7 @@
 module Language.Marlowe.ACTUS.Model.STF.StateTransitionModel where
 
 import           Data.Maybe                                       (fromJust, fromMaybe, isJust, isNothing)
-import           Language.Marlowe.ACTUS.Definitions.ContractState (ContractStatePoly (ContractStatePoly, fac, feac, ipac, ipcb, ipnr, isc, nsc, nt, prf, prnxt, sd, tmd))
+import           Language.Marlowe.ACTUS.Definitions.ContractState (ContractStatePoly (ContractStatePoly, feac, ipac, ipcb, ipnr, isc, nsc, nt, prf, prnxt, sd, tmd))
 import           Language.Marlowe.ACTUS.Definitions.ContractTerms (CR, FEB (FEB_N), IPCB (IPCB_NT),
                                                                    SCEF (SE_00M, SE_0N0, SE_0NM, SE_I00))
 import           Language.Marlowe.ACTUS.Ops                       (ActusNum (..), ActusOps (_max, _min, _zero),
@@ -48,16 +48,16 @@ _STF_PY_PAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _F
     let
         ipac' = ipac + y_sd_t * ipnr * nt
 
-        fac' = case _FEB of
-            Just FEB_N -> fac + y_sd_t * nt * _FER
+        feac' = case _FEB of
+            Just FEB_N -> feac + y_sd_t * nt * _FER
             _          -> y_tfpminus_t / y_tfpminus_tfpplus * _r _CNTRL * _FER
 
-    in st {ipac = ipac', fac = fac', sd = t}
+    in st {ipac = ipac', feac = feac', sd = t}
 
 _STF_FP_PAM :: (ActusNum a, ActusOps a) => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
 _STF_FP_PAM st@ContractStatePoly{..} t y_sd_t = st {
     ipac = ipac + y_sd_t * ipnr * nt,
-    fac = _zero,
+    feac = _zero,
     sd = t
 }
 
@@ -68,7 +68,7 @@ _STF_TD_PAM :: ActusOps a => ContractStatePoly a b -> b -> ContractStatePoly a b
 _STF_TD_PAM st t = st {
     nt = _zero,
     ipac = _zero,
-    fac = _zero,
+    feac = _zero,
     ipnr = _zero,
     sd = t
 }
@@ -93,9 +93,9 @@ _STF_RR_PAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b 
 _STF_RR_PAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER _CNTRL _RRLF _RRLC _RRPC _RRPF _RRMLT _RRSP o_rf_RRMO =
     let
         ipac' = ipac + y_sd_t * ipnr * nt
-        fac'  =
+        feac' =
           case _FEB of
-            Just FEB_N -> fac + y_sd_t * nt * _FER
+            Just FEB_N -> feac + y_sd_t * nt * _FER
             _          -> y_tfpminus_t / y_tfpminus_tfpplus * _r _CNTRL * _FER
 
         st' = _STF_PRD_PAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER _CNTRL
@@ -103,7 +103,7 @@ _STF_RR_PAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _F
         delta_r = _min (_max (o_rf_RRMO * _RRMLT + _RRSP - ipnr) _RRPF) _RRPC
 
         ipnr' = _min (_max (ipnr + delta_r) _RRLF) _RRLC
-    in st' {ipac = ipac', fac = fac', ipnr = ipnr', sd = t}
+    in st' {ipac = ipac', feac = feac', ipnr = ipnr', sd = t}
 
 _STF_RRF_PAM :: (ActusOps a, RoleSignOps a, ActusNum a) => ContractStatePoly a b -> b -> a -> a -> a -> Maybe FEB -> a -> CR -> Maybe a -> ContractStatePoly a b
 _STF_RRF_PAM st t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER _CNTRL _RRNXT =
@@ -157,15 +157,15 @@ _STF_PR_LAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _F
     let
         nt' = nt - _r _CNTRL * prnxt
 
-        fac' = case _FEB of
-            Just FEB_N -> fac + y_sd_t * nt * _FER
+        feac' = case _FEB of
+            Just FEB_N -> feac + y_sd_t * nt * _FER
             _          -> y_tfpminus_t / y_tfpminus_tfpplus * _r _CNTRL * _FER
 
         ipcb' = case fromJust _IPCB of
             IPCB_NT -> nt'
             _       -> ipcb
 
-     in st {nt = nt', fac = fac', ipcb = ipcb', sd = t}
+     in st {nt = nt', feac = feac', ipcb = ipcb', sd = t}
 
 _STF_MD_LAM :: ActusOps a => ContractStatePoly a b -> b -> ContractStatePoly a b
 _STF_MD_LAM st t = st {
@@ -191,16 +191,16 @@ _STF_PY_LAM st@ContractStatePoly{..} t y_sd_t y_tfpminus_t y_tfpminus_tfpplus _F
     let
         ipac' = ipac + y_sd_t * ipnr * ipcb
 
-        fac' = case _FEB of
-            Just FEB_N -> fac + y_sd_t * nt * _FER
+        feac' = case _FEB of
+            Just FEB_N -> feac + y_sd_t * nt * _FER
             _          -> y_tfpminus_t / y_tfpminus_tfpplus * _r _CNTRL * _FER
 
-    in st {ipac = ipac', fac = fac', sd = t}
+    in st {ipac = ipac', feac = feac', sd = t}
 
 _STF_FP_LAM :: (ActusNum a, ActusOps a) => ContractStatePoly a b -> b -> a -> ContractStatePoly a b
 _STF_FP_LAM st@ContractStatePoly{..} t y_sd_t = st {
     ipac = ipac + y_sd_t * ipnr * ipcb,
-    fac = _zero,
+    feac = _zero,
     sd = t
 }
 

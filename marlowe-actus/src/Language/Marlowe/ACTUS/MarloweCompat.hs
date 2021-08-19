@@ -41,7 +41,6 @@ stateTransitionMarlowe ev t continue handler =
                                        , ipnr  = useval "ipnr" $  t - 1
                                        , ipac  = useval "ipac" $  t - 1
                                        , feac  = useval "feac" $  t - 1
-                                       , fac   = useval "fac" $  t - 1
                                        , nsc   = useval "nsc" $  t - 1
                                        , isc   = useval "isc" $  t - 1
                                        , sd    = useval "sd" $  t - 1
@@ -54,7 +53,6 @@ stateTransitionMarlowe ev t continue handler =
         handler_ipnr = ipnr $ handler ev inputState
         handler_ipac = ipac $ handler ev inputState
         handler_feac = feac $ handler ev inputState
-        handler_fac = fac $ handler ev inputState
         handler_nsc = nsc $ handler ev inputState
         handler_isc = isc $ handler ev inputState
         handler_sd = sd $ handler ev inputState
@@ -65,7 +63,6 @@ stateTransitionMarlowe ev t continue handler =
             $ letval "ipnr" t handler_ipnr
             $ letval "ipac" t handler_ipac
             $ letval "feac" t handler_feac
-            $ letval "fac"  t handler_fac
             $ letval "nsc"  t handler_nsc
             $ letval "isc"  t handler_isc
             $ letval "sd"   t handler_sd
@@ -80,7 +77,6 @@ stateInitialisation ContractStatePoly{..} continue =
         $ letval "ipnr" 0 (constnt ipnr)
         $ letval "ipac" 0 (constnt ipac)
         $ letval "feac" 0 (constnt feac)
-        $ letval "fac"  0 (constnt fac)
         $ letval "nsc"  0 (constnt nsc)
         $ letval "isc"  0 (constnt isc)
         $ letval "sd"   0 (marloweDate sd)

@@ -2,15 +2,17 @@
 
 module Language.Marlowe.ACTUS.Model.INIT.StateInitializationModel where
 
-import           Data.Maybe                                             (fromJust, fromMaybe, isJust, isNothing)
+import           Control.Applicative                                    (liftA2)
+import           Data.Maybe                                             (fromJust, isJust, isNothing)
 import           Data.Time.Calendar                                     (Day)
-import           Language.Marlowe.ACTUS.Definitions.ContractState       (ContractStatePoly (ContractStatePoly, fac, feac, ipac, ipcb, ipnr, isc, nsc, nt, prf, prnxt, sd, tmd))
-import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (CR, ContractTerms (..), DCC, FEB (FEB_N),
-                                                                         IPCB (IPCB_NT),
-                                                                         SCEF (SE_0N0, SE_0NM, SE_I00, SE_I0M, SE_IN0, SE_INM),
-                                                                         n)
+import           Language.Marlowe.ACTUS.Definitions.BusinessEvents
+import           Language.Marlowe.ACTUS.Definitions.ContractState       (ContractStatePoly (..))
+import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (CR, CT (..), ContractTerms (..), DCC, FEB (..),
+                                                                         IPCB (..), PRF, SCEF (..), n)
+import           Language.Marlowe.ACTUS.Definitions.Schedule            (ShiftedDay (calculationDay))
+import           Language.Marlowe.ACTUS.Model.SCHED.ContractSchedule    (schedule)
 import           Language.Marlowe.ACTUS.Model.Utility.ContractRoleSign  (contractRoleSign)
-import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator (plusCycle)
+import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator (inf, plusCycle, sup)
 import           Language.Marlowe.ACTUS.Model.Utility.YearFraction      (yearFraction)
 
 {-# ANN module "HLint: ignore Use camelCase" #-}
@@ -35,165 +37,147 @@ scef_Ixx SE_I00 = True
 scef_Ixx SE_I0M = True
 scef_Ixx _      = False
 
-_INIT_PAM :: Day -> Day -> Day -> Day -> ContractTerms -> ContractStatePoly Double Day
-_INIT_PAM t0 tminus tfp_minus tfp_plus ContractTerms{..} =
-    let
-        _IED   = fromJust ct_IED
-        _DCC   = fromJust ct_DCC
-        _PRF   = fromJust ct_PRF
-        _SCEF  = fromJust ct_SCEF
-        _SCCDD = fromJust ct_SCCDD
+initMd :: ContractTerms -> Day -> Maybe Day
+initMd ContractTerms{..} tpr_minus =
+  case contractType of
+    PAM -> ct_MD
+    _   -> let t0 = Just ct_SD
 
-        tmd                                     = fromJust ct_MD
+               tminus | isJust ct_PRANX && ct_PRANX >= t0     = ct_PRANX
+                      | liftA2 plusCycle ct_IED ct_PRCL >= t0 = liftA2 plusCycle ct_IED ct_PRCL
+                      | otherwise                             = Just tpr_minus
 
-        nt
-                | _IED > t0                     = 0.0
-                | otherwise                     = r ct_CNTRL * fromJust ct_NT
+               tmd | isJust ct_MD = ct_MD
+                   | otherwise    = do _NT    <- ct_NT
+                                       _PRNXT <- ct_PRNXT
+                                       _PRCL  <- ct_PRCL
 
-        ipnr
-                | _IED > t0                     = 0.0
-                | otherwise                     = fromMaybe 0.0 ct_IPNR
+                                       let _PRCL' = _PRCL { n = ceiling (_NT / _PRNXT) * n _PRCL }
+                                       liftA2 plusCycle tminus (Just _PRCL')
 
-        ipac
-                | isNothing ct_IPNR             = 0.0
-                | isJust ct_IPAC                = fromJust ct_IPAC
-                | otherwise                     = y _DCC tminus t0 ct_MD * nt * ipnr
+            in tmd
 
-        fac
-                | isNothing ct_FER              = 0.0
-                | isJust ct_FEAC                = fromJust ct_FEAC
-                | fromJust ct_FEB == FEB_N      = y _DCC tfp_minus t0 ct_MD * nt * fromJust ct_FER
-                | otherwise                     = y _DCC tfp_minus t0 ct_MD / y _DCC tfp_minus tfp_plus ct_MD * fromJust ct_FER
+initNt :: ContractTerms -> Maybe Double
+initNt ContractTerms{..} =
+  let t0 = Just ct_SD
 
-        feac
-                | isNothing ct_FER              = 0.0
-                | isJust ct_FEAC                = fromJust ct_FEAC
-                | fromJust ct_FEB == FEB_N      = y _DCC tfp_minus t0 ct_MD * nt * fromJust ct_FER
-                | otherwise                     = y _DCC tfp_minus t0 ct_MD / y _DCC tfp_minus tfp_plus ct_MD * fromJust ct_FER
+      nt | ct_IED > t0 = Just 0.0
+         | otherwise   = (\x -> r ct_CNTRL * x) <$> ct_NT
+  in nt
 
-        nsc
-                | scef_xNx _SCEF                = _SCCDD
-                | otherwise                     = 1.0
+initIpnr :: ContractTerms -> Maybe Double
+initIpnr ContractTerms{..} =
+  let t0 = Just ct_SD
 
-        isc
-                | scef_Ixx _SCEF                = _SCCDD
-                | otherwise                     = 1.0
+      ipnr | ct_IED > t0 = Just 0.0
+           | otherwise   = ct_IPNR
+  in ipnr
 
-        prf                                     = _PRF
+initIpac :: ContractTerms -> Double -> Double -> Day -> Maybe Double
+initIpac ContractTerms{..} nt ipnr tminus =
+  let t0 = ct_SD
 
-        sd                                      = t0
+      ipac | isNothing ct_IPNR = Just 0.0
+           | isJust ct_IPAC    = ct_IPAC
+           | otherwise         = (\d -> y d tminus t0 ct_MD * nt * ipnr) <$> ct_DCC
+  in ipac
 
-    in ContractStatePoly {
-            prnxt = 0.0
-          , ipcb = 0.0
-          , tmd = tmd
-          , nt = nt
-          , ipnr = ipnr
-          , ipac = ipac
-          , fac = fac
-          , feac = feac
-          , nsc = nsc
-          , isc = isc
-          , prf = prf
-          , sd = sd
+initFeac :: ContractTerms -> Double -> Day -> Day -> Maybe Double
+initFeac ContractTerms{..} nt tfp_minus tfp_plus =
+  let t0 = ct_SD
+      feac | isNothing ct_FER     = Just 0.0
+           | isJust ct_FEAC       = ct_FEAC
+           | ct_FEB == Just FEB_N = (\d -> y d tfp_minus t0 ct_MD * nt * fromJust ct_FER) <$> ct_DCC
+           | otherwise            = (\d -> y d tfp_minus t0 ct_MD / y d tfp_minus tfp_plus ct_MD * fromJust ct_FER) <$> ct_DCC
+  in feac
+
+initNsc :: ContractTerms -> Maybe Double
+initNsc ContractTerms{..} =
+  let nsc | maybe False scef_xNx ct_SCEF = ct_SCCDD
+          | otherwise                    = Just 1.0
+  in nsc
+
+initIsc :: ContractTerms -> Maybe Double
+initIsc ContractTerms{..} =
+  let isc | maybe False scef_Ixx ct_SCEF = ct_SCCDD
+          | otherwise                    = Just 1.0
+  in isc
+
+initPrf :: ContractTerms -> Maybe PRF
+initPrf ContractTerms{..} = ct_PRF
+
+initSd :: ContractTerms -> Maybe Day
+initSd ContractTerms{..} = Just ct_SD
+
+initPrnxt :: ContractTerms -> Day -> Day -> Maybe Double
+initPrnxt ContractTerms{..} tpr_minus tmd =
+  case contractType of
+    PAM -> Just 0.0
+    LAM ->
+      let t0 = ct_SD
+
+          s | isJust ct_PRANX && ct_PRANX > Just t0                           = ct_PRANX
+            | isNothing ct_PRANX && liftA2 plusCycle ct_IED ct_PRCL > Just t0 = liftA2 plusCycle ct_IED ct_PRCL
+            | otherwise                                                       = Just tpr_minus
+
+          prnxt | isJust ct_PRNXT = ct_PRNXT
+                | otherwise       = do _NT   <- ct_NT
+                                       _PRCL <- ct_PRCL
+                                       _DCC  <- ct_DCC
+                                       s'    <- s
+                                       return $ _NT * (1.0 / fromIntegral (ceiling (y _DCC s' tmd (Just tmd) / y _DCC s' (s' `plusCycle` _PRCL) (Just tmd)) :: Integer))
+
+      in prnxt
+
+    NAM -> liftA2 (*) (Just $ r ct_CNTRL) ct_PRNXT
+    ANN -> Just 0.0
+
+initIpcb :: ContractTerms -> Maybe Double
+initIpcb ContractTerms{..} =
+  case contractType of
+    PAM -> Just 0.0
+    _   ->
+      let t0 = Just ct_SD
+          ipcb | t0 < ct_IED             = Just 0.0
+               | ct_IPCB == Just IPCB_NT = liftA2 (*) (Just $ r ct_CNTRL) ct_NT
+               | otherwise               = liftA2 (*) (Just $ r ct_CNTRL) ct_IPCBA
+      in ipcb
+
+_INIT :: ContractTerms -> Maybe (ContractStatePoly Double Day)
+_INIT ct@ContractTerms{..} = let
+    fpSchedule = schedule FP ct
+    ipSchedule = schedule IP ct
+    prSchedule = schedule PR ct
+
+    t0         = ct_SD
+    tfp_minus  = maybe t0 calculationDay ((\sc -> sup sc t0) =<< fpSchedule)
+    tfp_plus   = maybe t0 calculationDay ((\sc -> inf sc t0) =<< fpSchedule)
+    tminus     = maybe t0 calculationDay ((\sc -> sup sc t0) =<< ipSchedule)
+    tpr_minus  = maybe t0 calculationDay ((\sc -> sup sc t0) =<< prSchedule)
+
+    in do
+      tmd   <- initMd ct tpr_minus
+      nt    <- initNt ct
+      ipnr  <- initIpnr ct
+      ipac  <- initIpac ct nt ipnr tminus
+      feac  <- initFeac ct nt tfp_minus tfp_plus
+      nsc   <- initNsc ct
+      isc   <- initIsc ct
+      prf   <- initPrf ct
+      sd    <- initSd ct
+      prnxt <- initPrnxt ct tpr_minus tmd
+      ipcb  <- initIpcb ct
+
+      return $ ContractStatePoly {
+            prnxt = prnxt
+          , ipcb  = ipcb
+          , tmd   = tmd
+          , nt    = nt
+          , ipnr  = ipnr
+          , ipac  = ipac
+          , feac  = feac
+          , nsc   = nsc
+          , isc   = isc
+          , prf   = prf
+          , sd    = sd
         }
-
-_INIT_LAM :: Day -> Day -> Day -> Day -> Day -> ContractTerms -> ContractStatePoly Double Day
-_INIT_LAM t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
-    let
-        _IED = fromJust ct_IED
-        _DCC = fromJust ct_DCC
-
-        -- TMD
-        maybeTMinus
-                    | isJust ct_PRANX && fromJust ct_PRANX >= t0 = ct_PRANX
-                    | (_IED `plusCycle` fromJust ct_PRCL) >= t0  = Just $ _IED `plusCycle` fromJust ct_PRCL
-                    | otherwise                                  = Just tpr_minus
-
-        tmd
-                | isJust ct_MD = fromJust ct_MD
-                | otherwise    = fromJust maybeTMinus `plusCycle` (fromJust ct_PRCL)
-                                        { n = ceiling (fromJust ct_NT / fromJust ct_PRNXT) * n (fromJust ct_PRCL) }
-
-        -- PRNXT
-        s
-                | isJust ct_PRANX && fromJust ct_PRANX > t0                      = fromJust ct_PRANX
-                | isNothing ct_PRANX && (_IED `plusCycle` fromJust ct_PRCL) > t0 = _IED `plusCycle` fromJust ct_PRCL
-                | otherwise                                                      = tpr_minus
-
-        prnxt
-                | isJust ct_PRNXT               = fromJust ct_PRNXT
-                | otherwise                     = fromJust ct_NT * (1.0 / fromIntegral (ceiling (y _DCC s tmd (Just tmd) / y _DCC s (s `plusCycle` fromJust ct_PRCL) (Just tmd)) :: Integer))
-
-        -- IPCB
-        ipcb
-                | t0 < _IED                     = 0.0
-                | fromJust ct_IPCB == IPCB_NT   = r ct_CNTRL * fromJust ct_NT
-                | otherwise                     = r ct_CNTRL * fromJust ct_IPCBA
-
-        pam_init = _INIT_PAM t0 tminus tfp_minus tfp_plus terms
-
-    -- All is same as PAM except PRNXT, IPCB, and TMD
-    in pam_init { prnxt = prnxt, ipcb = ipcb, tmd = tmd }
-
-_INIT_NAM :: Day -> Day -> Day -> Day -> Day -> ContractTerms -> ContractStatePoly Double Day
-_INIT_NAM t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
-
-    let
-        _IED   = fromJust ct_IED
-        _DCC   = fromJust ct_DCC
-        _PRNXT = fromJust ct_PRNXT
-
-        -- TMD
-        maybeTMinus
-                    | isJust ct_PRANX && fromJust ct_PRANX >= t0 = ct_PRANX
-                    | (_IED `plusCycle` fromJust ct_PRCL) >= t0  = Just $ _IED `plusCycle` fromJust ct_PRCL
-                    | otherwise                                  = Just tpr_minus
-        tmd
-                | isJust ct_MD = fromJust ct_MD
-                | otherwise = fromJust maybeTMinus `plusCycle` (fromJust ct_PRCL) { n = ceiling(fromJust ct_NT / (_PRNXT - fromJust ct_NT  * y _DCC tminus (tminus `plusCycle` fromJust ct_PRCL) ct_MD * fromJust ct_IPNR))}
-
-        -- PRNXT
-        prnxt = r ct_CNTRL * _PRNXT
-
-        -- IPCB
-        ipcb
-                | t0 < _IED                     = 0.0
-                | fromJust ct_IPCB == IPCB_NT   = r ct_CNTRL * fromJust ct_NT
-                | otherwise                     = r ct_CNTRL * fromJust ct_IPCBA
-
-        pam_init = _INIT_PAM t0 tminus tfp_minus tfp_plus terms
-
-    -- All is same as PAM except PRNXT and TMD, IPCB same as LAM
-    in pam_init { prnxt = prnxt, ipcb = ipcb, tmd = tmd }
-
-_INIT_ANN :: Day -> Day -> Day -> Day -> Day -> ContractTerms -> ContractStatePoly Double Day
-_INIT_ANN t0 tminus tpr_minus tfp_minus tfp_plus terms@ContractTerms{..} =
-
-    let
-        _IED   = fromJust ct_IED
-        _DCC   = fromJust ct_DCC
-        _PRNXT = fromJust ct_PRNXT
-
-        -- TMD
-        maybeTMinus
-                    | isJust ct_PRANX && fromJust ct_PRANX >= t0 = ct_PRANX
-                    | (_IED `plusCycle` fromJust ct_PRCL) >= t0  = Just $ _IED `plusCycle` fromJust ct_PRCL
-                    | otherwise                                  = Just tpr_minus
-        tmd
-                | isJust ct_MD = fromJust ct_MD
-                | otherwise = fromJust maybeTMinus `plusCycle` (fromJust ct_PRCL) { n = ceiling(fromJust ct_NT / (_PRNXT - fromJust ct_NT  * y _DCC tminus (tminus `plusCycle` fromJust ct_PRCL) ct_MD * fromJust ct_IPNR))}
-
-        -- PRNXT
-        prnxt = r ct_CNTRL * _PRNXT
-
-        -- IPCB
-        ipcb
-                | t0 < _IED                     = 0.0
-                | fromJust ct_IPCB == IPCB_NT   = r ct_CNTRL * fromJust ct_NT
-                | otherwise                     = r ct_CNTRL * fromJust ct_IPCBA
-
-        pam_init = _INIT_PAM t0 tminus tfp_minus tfp_plus terms
-
-    -- All is same as PAM except PRNXT and TMD, IPCB same as LAM
-    in pam_init { prnxt = prnxt, ipcb = ipcb, tmd = tmd }
