@@ -92,14 +92,14 @@ schedule ev ct@ContractTerms{..} =
 
         PAM -> ct_MD
 
-        LAM -> let ipSchedule = schedule IP ct
-                   prSchedule = schedule PR ct
+        LAM -> let ipSchedule = _SCHED_IP_PAM ct
+                   prSchedule = _SCHED_PR_LAM ct
 
                    t0         = ct_SD
                    tminus     = maybe t0 calculationDay ((\sc -> sup sc t0) =<< ipSchedule)
                    tpr_minus  = maybe t0 calculationDay ((\sc -> sup sc t0) =<< prSchedule)
 
-                   tMinus | ct_PRANX >= Just t0 = ct_PRANX
+                   tMinus | isJust ct_PRANX && ct_PRANX >= Just t0     = ct_PRANX
                           | liftA2 plusCycle ct_IED ct_PRCL >= Just t0 = liftA2 plusCycle ct_IED ct_PRCL
                           | otherwise                                  = Just tpr_minus
 
