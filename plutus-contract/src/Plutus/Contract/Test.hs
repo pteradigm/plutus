@@ -21,6 +21,8 @@ module Plutus.Contract.Test(
     , ContractConstraints
     , Plutus.Contract.Test.not
     , (.&&.)
+    , knownWallet
+    , w1, w2, w3, w4, w5, w6, w7, w8, w9, w10
     -- * Assertions
     , endpointAvailable
     , queryingUtxoAt
@@ -661,3 +663,18 @@ reasonable' logger (Ledger.unValidatorScript -> s) maxSize = do
 -- | Compare a golden PIR file to the provided 'CompiledCode'.
 goldenPir :: FilePath -> CompiledCode a -> TestTree
 goldenPir path code = goldenVsString "PIR" path (pure $ fromString $ show $ pretty $ fromJust $ getPir code)
+
+knownWallet :: Integer -> Wallet
+knownWallet = (knownWallets !!) . pred . fromInteger
+
+w1, w2, w3, w4, w5, w6, w7, w8, w9, w10 :: Wallet
+w1 = knownWallet 1
+w2 = knownWallet 2
+w3 = knownWallet 3
+w4 = knownWallet 4
+w5 = knownWallet 5
+w6 = knownWallet 6
+w7 = knownWallet 7
+w8 = knownWallet 8
+w9 = knownWallet 9
+w10 = knownWallet 10

@@ -14,10 +14,10 @@
 module Wallet.Emulator.Types(
     -- * Wallets
     Wallet(..),
+    WalletId(..),
     walletPubKey,
-    walletPrivKey,
-    signWithWallet,
     addSignature,
+    knownWallets,
     TxPool,
     -- * Emulator
     EmulatorEffs,

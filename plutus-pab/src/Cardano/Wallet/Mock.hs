@@ -149,7 +149,7 @@ handleMultiWallet feeCfg = \case
         wallets <- get @Wallets
         (pubKey, privateKey) <- newKeyPair
         let wallet = pubKeyHashWallet $ pubKeyHash pubKey
-            newState = Wallet.emptyWalletStateFromPrivateKey privateKey
+            newState = Wallet.emptyWalletState privateKey
         let wallets' = Map.insert wallet newState wallets
         put wallets'
         -- For some reason this doesn't work with (Wallet 1)/privateKey1,

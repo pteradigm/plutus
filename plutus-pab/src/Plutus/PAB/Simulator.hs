@@ -154,10 +154,10 @@ data AgentState t =
 
 makeLenses ''AgentState
 
-initialAgentState :: forall t. Wallet -> AgentState t
-initialAgentState wallet =
+initialAgentState :: forall t. PrivateKey -> AgentState t
+initialAgentState privKey =
     AgentState
-        { _walletState   = Wallet.emptyWalletState wallet
+        { _walletState   = Wallet.emptyWalletState privKey
         , _submittedFees = mempty
         }
 
@@ -729,7 +729,7 @@ addWallet = do
     result <- liftIO $ STM.atomically $ do
         currentWallets <- STM.readTVar _agentStates
         let newWallet = MockWallet.pubKeyHashWallet (pubKeyHash publicKey)
-            newWallets = currentWallets & at newWallet .~ Just (AgentState (Wallet.emptyWalletStateFromPrivateKey privateKey) mempty)
+            newWallets = currentWallets & at newWallet .~ Just (AgentState (Wallet.emptyWalletState privateKey) mempty)
         STM.writeTVar _agentStates newWallets
         pure (newWallet, publicKey)
     _ <- handleAgentThread (Wallet 2)

@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DerivingStrategies    #-}
+{-# LANGUAGE DerivingVia           #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE LambdaCase            #-}
@@ -10,54 +11,61 @@
 {-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -Wno-orphans  #-}
 module Wallet.Emulator.Wallet where
 
-import           Control.Lens                   as Lens
-import           Control.Monad                  (foldM)
+import qualified Cardano.Crypto.Wallet            as Crypto
+import           Control.Lens                     hiding (from, to)
+import           Control.Monad                    (foldM)
 import           Control.Monad.Freer
 import           Control.Monad.Freer.Error
-import           Control.Monad.Freer.Extras.Log (LogMsg, logDebug, logInfo, logWarn)
+import           Control.Monad.Freer.Extras.Log   (LogMsg, logDebug, logInfo, logWarn)
 import           Control.Monad.Freer.State
-import           Control.Monad.Freer.TH         (makeEffect)
-import           Control.Newtype.Generics       (Newtype)
-import           Data.Aeson                     (FromJSON, ToJSON, ToJSONKey)
+import           Control.Monad.Freer.TH           (makeEffect)
+import           Control.Newtype.Generics         (Newtype)
+import           Data.Aeson                       (FromJSON (..), ToJSON (..), ToJSONKey)
+import qualified Data.Aeson                       as Aeson
+import           Data.Aeson.Extras
 import           Data.Bifunctor
+import qualified Data.ByteString                  as BS
 import           Data.Foldable
-import           Data.Hashable                  (Hashable)
-import qualified Data.Map                       as Map
+import           Data.Hashable                    (Hashable (..))
+import qualified Data.Map                         as Map
 import           Data.Maybe
-import           Data.Semigroup                 (Sum (..))
-import qualified Data.Set                       as Set
-import           Data.String                    (IsString (..))
-import qualified Data.Text                      as T
+import           Data.Semigroup                   (Sum (..))
+import qualified Data.Set                         as Set
+import           Data.String                      (IsString (..))
+import qualified Data.Text                        as T
 import           Data.Text.Prettyprint.Doc
-import           GHC.Generics                   (Generic)
-import           Ledger
-import qualified Ledger.Ada                     as Ada
-import qualified Ledger.AddressMap              as AM
-import           Ledger.Constraints.OffChain    (UnbalancedTx (..))
-import qualified Ledger.Constraints.OffChain    as U
-import           Ledger.Credential              (Credential (..))
-import qualified Ledger.Crypto                  as Crypto
-import           Ledger.Fee                     (FeeConfig (..), calcFees)
-import           Ledger.TimeSlot                (posixTimeRangeToContainedSlotRange)
-import qualified Ledger.Tx                      as Tx
-import qualified Ledger.Value                   as Value
-import           Plutus.Contract.Checkpoint     (CheckpointLogMsg)
-import qualified PlutusTx.Prelude               as PlutusTx
-import           Prelude                        as P
-import           Servant.API                    (FromHttpApiData (..), ToHttpApiData (..))
-import qualified Wallet.API                     as WAPI
-import           Wallet.Effects                 (ChainIndexEffect, NodeClientEffect, WalletEffect (..),
-                                                 watchedAddresses)
-import qualified Wallet.Effects                 as W
-import           Wallet.Emulator.Chain          (ChainState (..))
-import           Wallet.Emulator.ChainIndex     (ChainIndexState, idxWatchedAddresses)
-import           Wallet.Emulator.LogMessages    (RequestHandlerLogMsg, TxBalanceMsg (..))
-import           Wallet.Emulator.NodeClient     (NodeClientState, emptyNodeClientState)
+import           Data.Text.Prettyprint.Doc.Extras (PrettyShow (..))
+import           GHC.Generics                     (Generic (..))
+import           Ledger                           hiding (from, to)
+import qualified Ledger.Ada                       as Ada
+import qualified Ledger.AddressMap                as AM
+import           Ledger.Bytes                     as KB
+import           Ledger.Constraints.OffChain      (UnbalancedTx (..))
+import qualified Ledger.Constraints.OffChain      as U
+import           Ledger.Credential                (Credential (..))
+import qualified Ledger.Crypto                    as Crypto
+import           Ledger.Fee                       (FeeConfig (..), calcFees)
+import           Ledger.TimeSlot                  (posixTimeRangeToContainedSlotRange)
+import qualified Ledger.Tx                        as Tx
+import qualified Ledger.Value                     as Value
+import           Plutus.Contract.Checkpoint       (CheckpointLogMsg)
+import qualified PlutusTx.Prelude                 as PlutusTx
+import           Prelude                          as P
+import           Servant.API                      (FromHttpApiData (..), ToHttpApiData (..))
+import qualified Wallet.API                       as WAPI
+import           Wallet.Effects                   (ChainIndexEffect, NodeClientEffect, WalletEffect (..),
+                                                   watchedAddresses)
+import qualified Wallet.Effects                   as W
+import           Wallet.Emulator.Chain            (ChainState (..))
+import           Wallet.Emulator.ChainIndex       (ChainIndexState, idxWatchedAddresses)
+import           Wallet.Emulator.LogMessages      (RequestHandlerLogMsg, TxBalanceMsg (..))
+import           Wallet.Emulator.NodeClient       (NodeClientState, emptyNodeClientState)
 
 newtype SigningProcess = SigningProcess {
     unSigningProcess :: forall effs. (Member (Error WAPI.WalletAPIError) effs) => [PubKeyHash] -> Tx -> Eff effs Tx
@@ -67,7 +75,7 @@ instance Show SigningProcess where
     show = const "SigningProcess <...>"
 
 -- | A wallet in the emulator model.
-newtype Wallet = Wallet { getWallet :: Integer }
+newtype Wallet = Wallet { getWalletId :: WalletId }
     deriving (Eq, Ord, Generic)
     deriving newtype (ToHttpApiData, FromHttpApiData, Hashable)
     deriving anyclass (Newtype, ToJSON, FromJSON, ToJSONKey)
@@ -78,26 +86,52 @@ instance Show Wallet where
 instance Pretty Wallet where
     pretty (Wallet i) = "W" <> pretty i
 
+data WalletId = MockWallet PrivateKey | XPubWallet Crypto.XPub
+    deriving (Eq, Ord, Generic)
+    deriving anyclass (Hashable)
+    deriving Pretty via (PrettyShow WalletId)
+
+instance Show WalletId where
+    show = T.unpack . toBase16
+instance ToJSON WalletId where
+    toJSON = Aeson.String . toBase16
+instance ToJSONKey WalletId
+instance FromJSON WalletId where
+    parseJSON = Aeson.withText "WalletId" (either fail pure . fromBase16)
+instance ToHttpApiData WalletId where
+    toUrlPiece = toBase16
+instance FromHttpApiData WalletId where
+    parseUrlPiece = first T.pack . fromBase16
+
+toBase16 :: WalletId -> T.Text
+toBase16 (MockWallet (PrivateKey xprv)) = encodeByteString $ KB.bytes xprv
+toBase16 (XPubWallet xpub)              = encodeByteString $ Crypto.unXPub xpub
+
+fromBase16 :: T.Text -> Either String WalletId
+fromBase16 s = do
+    bs <- tryDecode s
+    case BS.length bs of
+        64  -> XPubWallet <$> Crypto.xpub bs
+        128 -> MockWallet . Crypto.fromXPrv <$> Crypto.xprv bs
+        _   -> Left "fromBase16 error: bytestring length should be 64 or 128"
+
+-- | Get a wallet's extended public key
+walletXPub :: Wallet -> Crypto.XPub
+walletXPub (Wallet (MockWallet priv)) = Crypto.privateKeyToXPub priv
+walletXPub (Wallet (XPubWallet xpub)) = xpub
+
 -- | Get a wallet's public key.
 walletPubKey :: Wallet -> PubKey
-walletPubKey = toPublicKey . walletPrivKey
-
--- | Get a wallet's private key by looking it up in the list of
---   private keys in 'Ledger.Crypto.knownPrivateKeys'
-walletPrivKey :: Wallet -> PrivateKey
-walletPrivKey (Wallet i) = cycle Crypto.knownPrivateKeys !! fromIntegral (i - 1)
+walletPubKey = Crypto.xPubToPublicKey . walletXPub
 
 -- | Get a wallet's address.
 walletAddress :: Wallet -> Address
 walletAddress = pubKeyAddress . walletPubKey
 
--- | Sign a 'Tx' using the wallet's privat key.
-signWithWallet :: Wallet -> Tx -> Tx
-signWithWallet wlt = addSignature (walletPrivKey wlt)
-
--- | Whether the wallet is one of the known emulated wallets
-isEmulatorWallet :: Wallet -> Bool
-isEmulatorWallet (Wallet i) = 0 <= i && i < fromIntegral (length Crypto.knownPrivateKeys)
+-- | The wallets used in mockchain simulations by default. There are
+--   ten wallets because the emulator comes with ten private keys.
+knownWallets :: [Wallet]
+knownWallets = Wallet . MockWallet <$> knownPrivateKeys
 
 data WalletEvent =
     GenericLog T.Text
@@ -130,17 +164,10 @@ makeLenses ''WalletState
 ownAddress :: WalletState -> Address
 ownAddress = pubKeyAddress . toPublicKey . view ownPrivateKey
 
--- | An empty wallet state with the public/private key pair for a wallet, and the public-key address
--- for that wallet as the sole watched address.
-emptyWalletState :: Wallet -> WalletState
-emptyWalletState w = WalletState pk emptyNodeClientState mempty sp  where
-    pk = walletPrivKey w
-    sp = defaultSigningProcess w
-
 -- | An empty wallet using the given private key.
 -- for that wallet as the sole watched address.
-emptyWalletStateFromPrivateKey :: PrivateKey -> WalletState
-emptyWalletStateFromPrivateKey pk = WalletState pk emptyNodeClientState mempty sp where
+emptyWalletState :: PrivateKey -> WalletState
+emptyWalletState pk = WalletState pk emptyNodeClientState mempty sp where
     sp = signWithPrivateKey pk
 
 data PaymentArgs =
@@ -395,11 +422,8 @@ signWallet wllt = SigningProcess $
 -- | Sign the transaction with the private key of the given public
 --   key. Fails if the wallet doesn't have the private key.
 signTxnWithKey :: (Member (Error WAPI.WalletAPIError) r) => Wallet -> Tx -> PubKeyHash -> Eff r Tx
-signTxnWithKey wllt tx pubK = do
-    let ownPubK = walletPubKey wllt
-    if pubKeyHash ownPubK == pubK
-    then pure (signWithWallet wllt tx)
-    else throwError (WAPI.PrivateKeyNotFound pubK)
+signTxnWithKey (Wallet (MockWallet prv)) tx pubK = signTxWithPrivateKey prv tx pubK
+signTxnWithKey (Wallet (XPubWallet xPub)) _ _ = throwError . WAPI.PrivateKeyNotFound . pubKeyHash $ Crypto.xPubToPublicKey xPub
 
 -- | Sign the transaction with the private key, if the hash is that of the
 --   private key.
@@ -410,11 +434,10 @@ signTxWithPrivateKey pk tx pubK = do
     then pure (addSignature pk tx)
     else throwError (WAPI.PrivateKeyNotFound pubK)
 
--- | Sign the transaction with the private keys of the given wallets,
+-- | Sign the transaction with the given private keys,
 --   ignoring the list of public keys that the 'SigningProcess' is passed.
-signWallets :: [Wallet] -> SigningProcess
-signWallets wallets = SigningProcess $ \_ tx ->
-    let signingKeys = walletPrivKey <$> wallets in
+signPrivateKeys :: [PrivateKey] -> SigningProcess
+signPrivateKeys signingKeys = SigningProcess $ \_ tx ->
     pure (foldr addSignature tx signingKeys)
 
 data SigningProcessControlEffect r where
@@ -436,7 +459,7 @@ data Entity
   deriving (Eq, Ord)
 
 instance Show Entity where
-  show (WalletEntity w)     = "Wallet " <> show (getWallet w)
+  show (WalletEntity w)     = show w
   show (ScriptEntity h)     = "Script " <> show h
   show (PubKeyHashEntity h) = "PubKeyHash " <> show h
 
