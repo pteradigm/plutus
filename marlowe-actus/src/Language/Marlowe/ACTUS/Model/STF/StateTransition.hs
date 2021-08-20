@@ -12,21 +12,13 @@ module Language.Marlowe.ACTUS.Model.STF.StateTransition where
 import           Data.Maybe                                             (fromMaybe)
 import           Data.Time                                              (Day)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents      (EventType (..), RiskFactors (..))
-
-import           Language.Marlowe.ACTUS.Definitions.ContractState       (ContractState,
-                                                                         ContractStatePoly (ContractStatePoly, feac, ipac, ipcb, ipnr, isc, nsc, nt, prf, prnxt, sd, tmd))
-import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (CT (..), ContractTerms (..), ScheduleConfig)
+import           Language.Marlowe.ACTUS.Definitions.ContractState       (ContractState, ContractStatePoly (..))
+import           Language.Marlowe.ACTUS.Definitions.ContractTerms       (CT (..), ContractTerms (..))
 import           Language.Marlowe.ACTUS.Definitions.Schedule            (ShiftedDay (calculationDay))
 import           Language.Marlowe.ACTUS.Model.SCHED.ContractSchedule    (schedule)
 import           Language.Marlowe.ACTUS.Model.STF.StateTransitionModel
-import           Language.Marlowe.ACTUS.Model.Utility.DateShift
 import           Language.Marlowe.ACTUS.Model.Utility.ScheduleGenerator (inf, sup)
-
-
 import           Language.Marlowe.ACTUS.Ops                             (YearFractionOps (_y))
-
-shift :: ScheduleConfig -> Day -> ShiftedDay
-shift = applyBDCWithCfg
 
 stateTransition :: EventType -> RiskFactors -> ContractTerms -> ContractState -> Day -> ContractState
 stateTransition ev RiskFactors{..} ct@ContractTerms{..} st@ContractStatePoly{..} t =
