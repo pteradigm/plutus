@@ -10,7 +10,7 @@ Note: initial states rely also on some schedules (and vice versa)
 module Language.Marlowe.ACTUS.Model.INIT.StateInitializationModel where
 
 import           Control.Applicative                                    (liftA2)
-import           Data.Maybe                                             (fromJust, isJust, isNothing)
+import           Data.Maybe                                             (isJust, isNothing)
 import           Data.Time.Calendar                                     (Day)
 import           Language.Marlowe.ACTUS.Definitions.BusinessEvents
 import           Language.Marlowe.ACTUS.Definitions.ContractState       (ContractStatePoly (..))
@@ -68,8 +68,14 @@ _INIT ct@ContractTerms {..} =
       let feac
             | isNothing ct_FER = Just 0.0
             | isJust ct_FEAC = ct_FEAC
-            | ct_FEB == Just FEB_N = (\d -> y d tfp_minus t0 ct_MD * nt * fromJust ct_FER) <$> ct_DCC
-            | otherwise = (\d -> y d tfp_minus t0 ct_MD / y d tfp_minus tfp_plus ct_MD * fromJust ct_FER) <$> ct_DCC
+            | ct_FEB == Just FEB_N = do
+                _DCC <- ct_DCC
+                _FER <- ct_FER
+                pure $ y _DCC tfp_minus t0 ct_MD * nt * _FER
+            | otherwise = do
+                _DCC <- ct_DCC
+                _FER <- ct_FER
+                pure $ y _DCC tfp_minus t0 ct_MD / y _DCC tfp_minus tfp_plus ct_MD * _FER
        in feac
 
     nsc <-
