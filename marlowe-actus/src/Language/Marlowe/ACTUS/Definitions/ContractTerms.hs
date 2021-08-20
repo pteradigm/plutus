@@ -282,9 +282,7 @@ applyDefault v = Just . fromMaybe v
 
 setDefaultContractTermValues :: ContractTerms -> ContractTerms
 setDefaultContractTermValues ct@ContractTerms{..} =
-  let
-      ScheduleConfig{..} = scfg
-
+  let ScheduleConfig{..} = scfg
       eomc'     = applyDefault EOMC_SD eomc
       bdc'      = applyDefault BDC_NULL bdc
       calendar' = applyDefault CLDR_NC calendar
@@ -297,30 +295,19 @@ setDefaultContractTermValues ct@ContractTerms{..} =
       _PPEF     = applyDefault PPEF_N ct_PPEF
       _RRSP     = applyDefault defaultRRSP ct_RRSP
       _RRMLT    = applyDefault defaultRRMLT ct_RRMLT
-
-      ct' =
-        case contractType of
-          PAM ->
-            ct {
-              ct_FEAC          = applyDefault 0.0 ct_FEAC
-            , ct_FER           = applyDefault 0.0 ct_FER
-
-            , ct_IPAC          = applyDefault 0.0 ct_IPAC
-            , ct_IPNR          = applyDefault 0.0 ct_IPNR
-
-            , ct_PPRD          = applyDefault 0.0 ct_PPRD
-            , ct_PTD           = applyDefault 0.0 ct_PTD
-            , ct_SCCDD         = applyDefault 0.0 ct_SCCDD
-
-            , ct_RRPF          = applyDefault (-infinity) ct_RRPF
-            , ct_RRPC          = applyDefault infinity ct_RRPC
-            , ct_RRLC          = applyDefault infinity ct_RRLC
-            , ct_RRLF          = applyDefault (-infinity) ct_RRLF
-            }
-
-          _ -> ct
+      _FEAC     = applyDefault 0.0 ct_FEAC
+      _FER      = applyDefault 0.0 ct_FER
+      _IPAC     = applyDefault 0.0 ct_IPAC
+      _IPNR     = applyDefault 0.0 ct_IPNR
+      _PPRD     = applyDefault 0.0 ct_PPRD
+      _PTD      = applyDefault 0.0 ct_PTD
+      _SCCDD    = applyDefault 0.0 ct_SCCDD
+      _RRPF     = applyDefault (-infinity) ct_RRPF
+      _RRPC     = applyDefault infinity ct_RRPC
+      _RRLC     = applyDefault infinity ct_RRLC
+      _RRLF     = applyDefault (-infinity) ct_RRLF
   in
-    ct' {
+    ct {
       scfg     = scfg { eomc = eomc', bdc = bdc', calendar = calendar' }
     , ct_PRF   = _PRF
     , ct_IPCB  = _IPCB
@@ -331,4 +318,15 @@ setDefaultContractTermValues ct@ContractTerms{..} =
     , ct_PPEF  = _PPEF
     , ct_RRSP  = _RRSP
     , ct_RRMLT = _RRMLT
+    , ct_FEAC  = _FEAC
+    , ct_FER   = _FER
+    , ct_IPAC  = _IPAC
+    , ct_IPNR  = _IPNR
+    , ct_PPRD  = _PPRD
+    , ct_PTD   = _PTD
+    , ct_SCCDD = _SCCDD
+    , ct_RRPF  = _RRPF
+    , ct_RRPC  = _RRPC
+    , ct_RRLC  = _RRLC
+    , ct_RRLF  = _RRLF
     }
