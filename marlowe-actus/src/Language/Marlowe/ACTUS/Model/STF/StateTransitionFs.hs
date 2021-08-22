@@ -48,12 +48,16 @@ stateTransitionFs ev ct@ContractTerms{..} t prevDate curDate continue =
         -- dates:
         time               = marloweDate curDate
         fpSchedule         = schedule FP ct
+        prSchedule         = schedule PR ct
         tfp_minus          = maybe curDate calculationDay ((\sc -> sup sc curDate) =<< fpSchedule)
         tfp_plus           = maybe curDate calculationDay ((\sc -> inf sc curDate) =<< fpSchedule)
         y_tfpminus_t       = constnt $ _y (fromJust ct_DCC) tfp_minus curDate ct_MD
         y_tfpminus_tfpplus = constnt $ _y (fromJust ct_DCC) tfp_minus tfp_plus ct_MD
         y_ipanx_t          = constnt $ _y (fromJust ct_DCC) (fromJust ct_IPANX) curDate ct_MD
         y_sd_t             = constnt $ _y (fromJust ct_DCC) prevDate curDate ct_MD
+
+        prDates            = maybe [] (map calculationDay) prSchedule
+        ti                 = map constnt $ zipWith (\tn tm -> _y (fromJust ct_DCC) tn tm ct_MD) prDates (tail prDates)
 
         addComment cont    = case ev of
             IED -> letval "IED" t (constnt 0) cont
@@ -139,8 +143,8 @@ stateTransitionFs ev ct@ContractTerms{..} t prevDate curDate continue =
                     IP   -> _STF_IP_PAM st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL
                     IPCI -> _STF_IPCI_LAM st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL _IPCB
                     IPCB -> _STF_IPCB_LAM st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL
-                    RR   -> _STF_RR_ANN st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL _RRLF _RRLC _RRPC _RRPF _RRMLT _RRSP _o_rf_RRMO
-                    RRF  -> _STF_RRF_ANN st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL _RRNXT
+                    RR   -> _STF_RR_ANN st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL _RRLF _RRLC _RRPC _RRPF _RRMLT _RRSP _o_rf_RRMO ti
+                    RRF  -> _STF_RRF_ANN st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL (fromJust _RRNXT) ti
                     SC   -> _STF_SC_LAM st time y_sd_t y_tfpminus_t y_tfpminus_tfpplus _FEB _FER ct_CNTRL (fromJust ct_SCEF) _o_rf_SCMO _SCIED
                     CE   -> _STF_AD_PAM st time y_sd_t
                     _    -> st

@@ -80,30 +80,28 @@ payoff ev RiskFactors{..} ContractTerms{..} ContractStatePoly{..} t =
     pof_PY_PAM = getValue $ do
       _PYTP <- ct_PYTP
       _PYRT <- ct_PYRT
-      y_sd_t' <- y_sd_t
-      pure $ _POF_PY_PAM _PYTP o_rf_CURS o_rf_RRMO _PYRT ct_cPYRT ct_CNTRL nt ipnr y_sd_t'
+      _POF_PY_PAM _PYTP o_rf_CURS o_rf_RRMO _PYRT ct_cPYRT ct_CNTRL nt ipnr <$> y_sd_t
 
     pof_FP_PAM = getValue $ do
       _FEB <- ct_FEB
       _FER <- ct_FER
-      y_sd_t' <- y_sd_t
-      pure $ _POF_FP_PAM _FEB _FER o_rf_CURS ct_CNTRL nt feac y_sd_t'
+      _POF_FP_PAM _FEB _FER o_rf_CURS ct_CNTRL nt feac <$> y_sd_t
 
-    pof_PRD_PAM = getValue $ ct_PPRD >>= \_PPRD -> y_sd_t >>= \y_sd_t' -> pure $ _POF_PRD_PAM o_rf_CURS ct_CNTRL _PPRD ipac ipnr nt y_sd_t'
+    pof_PRD_PAM = getValue $ ct_PPRD >>= \_PPRD -> _POF_PRD_PAM o_rf_CURS ct_CNTRL _PPRD ipac ipnr nt <$> y_sd_t
 
-    pof_TD_PAM = getValue $ ct_PTD >>= \_PTD -> y_sd_t >>= \y_sd_t' -> pure $ _POF_TD_PAM o_rf_CURS ct_CNTRL _PTD ipac ipnr nt y_sd_t'
+    pof_TD_PAM = getValue $ ct_PTD >>= \_PTD -> _POF_TD_PAM o_rf_CURS ct_CNTRL _PTD ipac ipnr nt <$> y_sd_t
 
-    pof_IP_PAM = getValue $ y_sd_t >>= \y_sd_t' -> pure $ _POF_IP_PAM o_rf_CURS isc ipac ipnr nt y_sd_t'
+    pof_IP_PAM = getValue $ _POF_IP_PAM o_rf_CURS isc ipac ipnr nt <$> y_sd_t
 
     -- LAM
 
     pof_PR_LAM = _POF_PR_LAM o_rf_CURS ct_CNTRL nsc prnxt
 
-    pof_PRD_LAM = getValue $ ct_PPRD >>= \_PPRD -> y_sd_t >>= \y_sd_t' -> pure $_POF_PRD_LAM o_rf_CURS ct_CNTRL _PPRD ipac ipnr ipcb y_sd_t'
+    pof_PRD_LAM = getValue $ ct_PPRD >>= \_PPRD -> _POF_PRD_LAM o_rf_CURS ct_CNTRL _PPRD ipac ipnr ipcb <$> y_sd_t
 
-    pof_TD_LAM = getValue $ ct_PTD >>= \_PTD -> y_sd_t >>= \y_sd_t' -> pure $ _POF_TD_LAM o_rf_CURS ct_CNTRL _PTD ipac ipnr ipcb y_sd_t'
+    pof_TD_LAM = getValue $ ct_PTD >>= \_PTD -> _POF_TD_LAM o_rf_CURS ct_CNTRL _PTD ipac ipnr ipcb <$> y_sd_t
 
-    pof_IP_LAM = getValue $ y_sd_t >>= \y_sd_t' -> pure $ _POF_IP_LAM o_rf_CURS isc ipac ipnr ipcb y_sd_t'
+    pof_IP_LAM = getValue $ _POF_IP_LAM o_rf_CURS isc ipac ipnr ipcb <$> y_sd_t
 
     -- NAN
 

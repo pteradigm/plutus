@@ -104,6 +104,7 @@ stateTransition ev RiskFactors{..} ct@ContractTerms{..} st@ContractStatePoly{..}
 
   where
         fpSchedule         = schedule FP ct
+        prSchedule         = schedule PR ct
 
         tfp_minus          = maybe t calculationDay ((\sc -> sup sc t) =<< fpSchedule)
         tfp_plus           = maybe t calculationDay ((\sc -> inf sc t) =<< fpSchedule)
@@ -304,11 +305,18 @@ stateTransition ev RiskFactors{..} ct@ContractTerms{..} st@ContractStatePoly{..}
           _RRPF               <- ct_RRPF
           _RRMLT              <- ct_RRMLT
           _RRSP               <- ct_RRSP
-          pure $ _STF_RR_ANN st t y_sd_t' y_tfpminus_t' y_tfpminus_tfpplus' ct_FEB _FER ct_CNTRL _RRLF _RRLC _RRPC _RRPF _RRMLT _RRSP o_rf_RRMO
+          _DCC                <- ct_DCC
+          prDates             <- map calculationDay <$> prSchedule
+          let ti              = zipWith (\tn tm -> _y _DCC tn tm ct_MD) prDates (tail prDates)
+          pure $ _STF_RR_ANN st t y_sd_t' y_tfpminus_t' y_tfpminus_tfpplus' ct_FEB _FER ct_CNTRL _RRLF _RRLC _RRPC _RRPF _RRMLT _RRSP o_rf_RRMO ti
 
         stf_RRF_ANN  = getState $ do
           _FER                <- ct_FER
+          _RRNXT              <- ct_RRNXT
+          _DCC                <- ct_DCC
           y_sd_t'             <- y_sd_t
           y_tfpminus_t'       <- y_tfpminus_t
           y_tfpminus_tfpplus' <- y_tfpminus_tfpplus
-          pure $ _STF_RRF_ANN st t y_sd_t' y_tfpminus_t' y_tfpminus_tfpplus' ct_FEB _FER ct_CNTRL ct_RRNXT
+          prDates             <- map calculationDay <$> prSchedule
+          let ti              = zipWith (\tn tm -> _y _DCC tn tm ct_MD) prDates (tail prDates)
+          pure $ _STF_RRF_ANN st t y_sd_t' y_tfpminus_t' y_tfpminus_tfpplus' ct_FEB _FER ct_CNTRL _RRNXT ti
