@@ -1,6 +1,6 @@
 {-# OPTIONS -W -Wwarn #-}
 {-# LANGUAGE LambdaCase #-}
-module PlutusIR.Transform.NewLetFloat where
+module PlutusIR.Transform.NewLetFloat (floatTerm) where
 
 import           Control.Lens            hiding (Strict)
 import           Control.Monad.Reader
@@ -50,8 +50,9 @@ mark t = runReader (go t) (topDepth, mempty)
           LamAbs _ n _ tBody  -> withLam n $ go tBody
           TyAbs _ n _ tBody   -> withLam n $ go tBody
           -- breaks down the NonRec true-groups
-          Let a NonRec bs tIn | length bs > 1 ->
-                                mconcat . NE.toList <$> for bs (\ b -> go (Let a NonRec (pure b) tIn))
+          -- break down let nonrec true group
+          Let a NonRec (b NE.:| bs) tIn | not (null bs) ->
+                go (Let a NonRec (pure b) $ Let a NonRec (fromList bs) tIn)
           l@(Let _ r bs tIn) ->
             let letU = head $ representativeBinding bs^..bindingIds
             in
@@ -60,7 +61,7 @@ mark t = runReader (go t) (topDepth, mempty)
                   -- since it is unmovable, the floatpos is a new anchor
                   (d, _) <- ask
                   let newDepth = d+1
-                  marked1 <- (if isRec r then withDepth (+1) . withBs bs (newDepth, letU, LetRhs) else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
+                  marked1 <- withDepth (+1) $ (if isRec r then withBs bs (newDepth, letU, LetRhs) else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
                   marked2 <- withDepth (+1) $ withBs bs (newDepth,letU, LamBody) $ go tIn
                   -- don't add any marks
                   pure $ marked1 <> marked2
@@ -68,7 +69,7 @@ mark t = runReader (go t) (topDepth, mempty)
                   (_,scope) <- ask
                   let freeVars = (if isRec r then  (S.\\ fromList (bs^..traversed.bindingIds)) else id) $ calcFreeVars bs scope
                       newPos@(newD,_,_) =  maxPos $ M.restrictKeys scope freeVars
-                  marks1 <- (if isRec r then withDepth (const newD) . withBs bs newPos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
+                  marks1 <- withDepth (const $ newD) $ (if isRec r then withBs bs newPos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
                   marks2 <- withBs bs newPos $ go tIn
                   -- add here a new mark
                   pure $ M.singleton letU newPos <> marks1 <> marks2
@@ -97,7 +98,18 @@ removeLets ms = go
               in case M.lookup (head $ representativeBinding bs^..bindingIds) ms of
                   Nothing  -> (M.unionWith (<>) r1 r2, Let a r bs' tIn')
                   Just pos -> (M.insertWith (<>) pos (pure (a,r,bs')) (M.unionWith (<>) r1 r2), tIn')
-          t' -> t' & termSubterms go
+
+          TyAbs a tyname k t -> second (TyAbs a tyname k) (go t)
+          LamAbs a name ty t -> second (LamAbs a name ty) (go t)
+          Apply a t1 t2 ->
+              let
+                  (r1, t1') = go t1
+                  (r2, t2') = go t2
+              in (M.unionWith (<>) r1 r2, Apply a t1' t2')
+          TyInst a t ty -> second (flip (TyInst a) ty) (go t)
+          IWrap a ty1 ty2 t -> second (IWrap a ty1 ty2) (go t)
+          Unwrap a t -> second (Unwrap a) (go t)
+          t' -> (mempty, t')
 
       goBinding (TermBind x s d t)  =
          let (m, t') = go t
@@ -165,7 +177,8 @@ floatTerm t = floatBackLets $ removeLets (mark t) t
 -- let-group splitting and correct ordering based on dep.resolution; right now is 1 big letrec at every floating position
 -- dep.resolution does not necessarily need depgraph,scc,topsort, it can be done by an extra int dep inside the Marks
 -- change unmovable to allow moving of strict-pure
--- parameterization: unmovable,nofulllaziness
+-- parameterization: unmovable,nofulllaziness, don'tfloatattop
+-- semigrouping the annotations into bigger ones when creating let groups
 
 -- OPTIMIZE:
 -- Skip marking big Lambdas, as outlined in the paper
