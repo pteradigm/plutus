@@ -316,7 +316,7 @@ annuity n a r ti = (n + a) * (numerator / denominator)
 
   where
     numerator = _product $ map ((+_one).(*r)) ti
-    denominator = _one + _sum (map _product $ tails ti)
+    denominator = _one + _sum (map (((+_one).(*r)) . _product) (tails ti))
 
     _product :: (ActusNum a, ActusOps a) => [a] -> a
     _product = foldl' (*) _one
