@@ -359,13 +359,12 @@ hoistExpr var t =
                     (PIR.Def var' (PIR.mkVar () var', PIR.Strict))
                     mempty
 
-                CompileContext {ccOpts=profileOpts} <- ask
-                t' <-
-                    if coProfile profileOpts==All then do
+                -- CompileContext {ccOpts=profileOpts} <- ask
+                t' <- do
+                    -- if coProfile profileOpts==All then do
                         t'' <- compileExpr t
                         return $ trace "entering x" (\() -> trace "exiting x" t'') ()
-                    else compileExpr t
-                    -- TODO add Some option
+                    -- else compileExpr t
 
                 -- See Note [Non-strict let-bindings]
                 let strict = PIR.isPure (const PIR.NonStrict) t'
