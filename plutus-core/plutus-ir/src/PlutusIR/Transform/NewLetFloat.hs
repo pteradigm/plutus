@@ -40,7 +40,7 @@ data PosType = LamBody -- big, small lam or let body
 
 type Marks = M.Map PLC.Unique Pos
 
-type LetHoled tyname name uni fun a = (a, Recursivity, NE.NonEmpty (Binding tyname name uni fun a))
+type LetHoled tyname name uni fun a = (a, NE.NonEmpty (Binding tyname name uni fun a))
 
 
 mark :: PLC.ToBuiltinMeaning uni fun => Term TyName Name uni fun a -> Marks
@@ -98,7 +98,7 @@ removeLets ms = go
                   (r2, tIn') = go tIn
               in case M.lookup (head $ representativeBinding bs^..bindingIds) ms of
                   Nothing  -> (M.unionWith (<>) r1 r2, Let a r bs' tIn')
-                  Just pos -> (M.insertWith (<>) pos (pure (a,r,bs')) (M.unionWith (<>) r1 r2), tIn')
+                  Just pos -> (M.insertWith (<>) pos (pure (a,bs')) (M.unionWith (<>) r1 r2), tIn')
 
           TyAbs a tyname k t -> second (TyAbs a tyname k) (go t)
           LamAbs a name ty t -> second (LamAbs a name ty) (go t)
@@ -127,7 +127,7 @@ floatBackLets (letholesTable,t) =
                         -- toplevel lets
                         -- NOTE that we do not run go(floated lets) because that would increase the depth,
                         -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
-                        letholes' <-  traverseOf (traversed._3.traversed.bindingSubterms) go letholes
+                        letholes' <-  traverseOf (traversed._2.traversed.bindingSubterms) go letholes
                         mergeLetsIn letholes' <$> go t
                     Nothing -> go t
               ) topDepth
@@ -147,7 +147,7 @@ floatBackLets (letholesTable,t) =
                         Just letholes -> do
                             -- NOTE that we do not run go(floated lets) because that would increase the depth,
                             -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
-                            letholes' <-  traverseOf (traversed._3.traversed.bindingSubterms) go letholes
+                            letholes' <-  traverseOf (traversed._2.traversed.bindingSubterms) go letholes
                             pure $ mergeLetsIn letholes' tBody'
                         Nothing ->  pure tBody'
           goLetRhs k u bs = local (+1) $ do
@@ -157,7 +157,7 @@ floatBackLets (letholesTable,t) =
                              Just letholes -> do
                                  -- NOTE that we do not run go(floated lets) because that would increase the depth,
                                  -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
-                                 letholes' <-  traverseOf (traversed._3.traversed.bindingSubterms) go letholes
+                                 letholes' <-  traverseOf (traversed._2.traversed.bindingSubterms) go letholes
                                  pure $ mergeBindings letholes' bs'
                              Nothing       -> pure bs'
 
@@ -171,7 +171,7 @@ mergeBindings :: NE.NonEmpty (LetHoled TyName Name uni fun a)
 mergeBindings ls =
     -- we ignore annotations and recursivity, the letholes *must be* merged together with a Recursive let bindings
     -- the order of (<>) does not matter because it is a recursive let-group anyway.
-    (foldMap1 (^._3) ls <>)
+    (foldMap1 (^._2) ls <>)
 
 
 mergeLetsIn :: NE.NonEmpty (LetHoled TyName Name uni fun a) -> Term TyName Name uni fun a -> Term TyName Name uni fun a
@@ -179,7 +179,7 @@ mergeLetsIn ls =
                  -- arbitrarily use the annotation of the first let of the floated lets as the annotation of the new let
                  Let (NE.head ls^._1)
                  Rec -- needs to be rec because we don't do dep resolution currently (in rec, bindings order does not matter)
-                 (foldMap1 (^._3) ls)
+                 (foldMap1 (^._2) ls)
 
 floatTerm :: PLC.ToBuiltinMeaning uni fun => Term TyName Name uni fun a -> Term TyName Name uni fun a
 floatTerm t = floatBackLets $ removeLets (mark t) t
