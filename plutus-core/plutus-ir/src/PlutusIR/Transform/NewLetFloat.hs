@@ -13,10 +13,11 @@ import qualified Data.Set                as S
 import           Data.Traversable
 import           GHC.Exts
 import qualified PlutusCore              as PLC
-import           PlutusCore.Name
+import qualified PlutusCore.Constant     as PLC
 import qualified PlutusCore.Name         as PLC
 import           PlutusIR
 import           PlutusIR.Core.Plated
+import           PlutusIR.Purity
 
 -- don't break down rec groups
 -- | Selects a binding to be used a representative binding in MARKING the group of bindings.
@@ -42,10 +43,10 @@ type Marks = M.Map PLC.Unique Pos
 type LetHoled tyname name uni fun a = (a, Recursivity, NE.NonEmpty (Binding tyname name uni fun a))
 
 
-mark :: Term TyName Name uni fun a -> Marks
+mark :: PLC.ToBuiltinMeaning uni fun => Term TyName Name uni fun a -> Marks
 mark t = runReader (go t) (topDepth, mempty)
     where
-      go :: Term TyName Name uni fun a -> Reader MarkCtx Marks
+      go :: PLC.ToBuiltinMeaning uni fun => Term TyName Name uni fun a -> Reader MarkCtx Marks
       go = \case
           LamAbs _ n _ tBody  -> withLam n $ go tBody
           TyAbs _ n _ tBody   -> withLam n $ go tBody
@@ -69,7 +70,7 @@ mark t = runReader (go t) (topDepth, mempty)
                   (_,scope) <- ask
                   let freeVars = (if isRec r then  (S.\\ fromList (bs^..traversed.bindingIds)) else id) $ calcFreeVars bs scope
                       newPos@(newD,_,_) =  maxPos $ M.restrictKeys scope freeVars
-                  marks1 <- withDepth (const $ newD) $ (if isRec r then withBs bs newPos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
+                  marks1 <- withDepth (const newD) $ (if isRec r then withBs bs newPos else id) (mconcat <$> traverse go (bs^..traversed.bindingSubterms))
                   marks2 <- withBs bs newPos $ go tIn
                   -- add here a new mark
                   pure $ M.singleton letU newPos <> marks1 <> marks2
@@ -121,8 +122,15 @@ floatBackLets :: -- | remove result
                 , Term TyName Name uni fun a)
               -> Term TyName Name uni fun a
 floatBackLets (letholesTable,t) =
-    -- toplevel lets
-    maybe id mergeLetsIn (M.lookup topPos letholesTable) $ runReader (go t) topDepth
+    runReader (case M.lookup topPos letholesTable of
+                    Just letholes -> do
+                        -- toplevel lets
+                        -- NOTE that we do not run go(floated lets) because that would increase the depth,
+                        -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
+                        letholes' <-  traverseOf (traversed._3.traversed.bindingSubterms) go letholes
+                        mergeLetsIn letholes' <$> go t
+                    Nothing -> go t
+              ) topDepth
     where go = \case
               LamAbs a n ty tBody -> goLam (LamAbs a n ty) (n^.PLC.theUnique) tBody
               TyAbs a n k tBody   -> goLam (TyAbs a n k) (n^.PLC.theUnique) tBody
@@ -135,17 +143,28 @@ floatBackLets (letholesTable,t) =
           goLam k u tBody = local (+1) $ do
               depth <- ask
               tBody' <- go tBody
-              pure $ k $ case M.lookup (depth, u, LamBody) letholesTable of
-                           Just letholes -> mergeLetsIn letholes tBody'
-                           Nothing       ->  tBody'
+              k <$> case M.lookup (depth, u, LamBody) letholesTable of
+                        Just letholes -> do
+                            -- NOTE that we do not run go(floated lets) because that would increase the depth,
+                            -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
+                            letholes' <-  traverseOf (traversed._3.traversed.bindingSubterms) go letholes
+                            pure $ mergeLetsIn letholes' tBody'
+                        Nothing ->  pure tBody'
           goLetRhs k u bs = local (+1) $ do
               depth <- ask
-              bs' <-  traverseOf (traversed . bindingSubterms)  go bs
-              pure $ k $ case M.lookup (depth, u, LetRhs) letholesTable of
-                             Just letholes -> mergeBindings letholes bs'
-                             Nothing       -> bs'
+              bs' <-  traverseOf (traversed.bindingSubterms) go bs
+              k <$> case M.lookup (depth, u, LetRhs) letholesTable of
+                             Just letholes -> do
+                                 -- NOTE that we do not run go(floated lets) because that would increase the depth,
+                                 -- but the floated lets are not anchors, instead we run go on the floated-let bindings' subterms
+                                 letholes' <-  traverseOf (traversed._3.traversed.bindingSubterms) go letholes
+                                 pure $ mergeBindings letholes' bs'
+                             Nothing       -> pure bs'
 
-
+-- | this has the side-effect that no "directly" nested let rec or nonrec inside another let's rhs can appear,
+-- e.g. no:  let {x = 1 + let {y = 3} in y} in ...
+-- EXCEPT if the nested let is intercepted by a l/Lambda (depends on a lambda of the parent-let's rhs)
+-- e.g. ok: let {x = \ z -> let {y = z+1} in y} in ...
 mergeBindings :: NE.NonEmpty (LetHoled TyName Name uni fun a)
               -> NE.NonEmpty (Binding TyName Name uni fun a)
               -> NE.NonEmpty (Binding TyName Name uni fun a)
@@ -162,12 +181,12 @@ mergeLetsIn ls =
                  Rec -- needs to be rec because we don't do dep resolution currently (in rec, bindings order does not matter)
                  (foldMap1 (^._3) ls)
 
-floatTerm :: Term TyName Name uni fun a -> Term TyName Name uni fun a
+floatTerm :: PLC.ToBuiltinMeaning uni fun => Term TyName Name uni fun a -> Term TyName Name uni fun a
 floatTerm t = floatBackLets $ removeLets (mark t) t
 
 -- NOTES:
--- 1) no adjacent let-nonrec merging, it is done by the new letmerge pass
--- 2) algo breaks down let-nonrec grouppings, so the letmerge pass is good to be applied
+-- 1) no adjacent let-nonrec merging, it is left for the new letmerge pass
+-- 2) algo breaks down let-nonrec grouppings, so the letmerge pass should be applied
 --
 -- 2) compared to "Let-floating: moving bindings to give faster programs", the algorithm
 -- does not float right outside the free-lamdba, but right inside the dependent lambda
@@ -176,7 +195,6 @@ floatTerm t = floatBackLets $ removeLets (mark t) t
 -- MISSING, TODO:
 -- let-group splitting and correct ordering based on dep.resolution; right now is 1 big letrec at every floating position
 -- dep.resolution does not necessarily need depgraph,scc,topsort, it can be done by an extra int dep inside the Marks
--- change unmovable to allow moving of strict-pure
 -- parameterization: unmovable,nofulllaziness, don'tfloatattop
 -- semigrouping the annotations into bigger ones when creating let groups
 
@@ -184,7 +202,6 @@ floatTerm t = floatBackLets $ removeLets (mark t) t
 -- Skip marking big Lambdas, as outlined in the paper
 -- recursive descend for removelets, floatbacklets does not shrink search space; fix: keep a state, and will help as a safeguard check for left-out floatings
 -- use some better/safer free-vars calculation?
--- keep an extra depth reader in mark pass, instead of relying on maxPos for l/Lambdas
 
 -- HELPERS
 
@@ -203,7 +220,7 @@ topPos = (topDepth, topUnique, topType)
 maxPos env = foldr max topPos $ M.elems env
 
 withLam n = local $ \ (d, scope) ->
-    let u = n^.theUnique
+    let u = n^.PLC.theUnique
         d' = d+1
         pos' = (d', u, LamBody)
     in (d', M.insert u pos' scope)
@@ -212,10 +229,20 @@ withDepth f = local (over _1 f)
 
 withBs bs pos = local $ second (M.fromList [(bid,pos) | bid <- bs^..traversed.bindingIds] <>)
 
-unmovable (Let _ NonRec (b  NE.:|[]) _) = isStrictBinding b
-unmovable (Let _ Rec bs _)              = any isStrictBinding bs
-unmovable _                             = error "unmovable not total"
+unmovable (Let _ NonRec (b  NE.:|[]) _) = mayHaveEffects b
+unmovable (Let _ Rec bs _)              = any mayHaveEffects bs
 
+-- | Returns if a binding's rhs is strict and may have effects (see Value.hs)
+mayHaveEffects
+    :: PLC.ToBuiltinMeaning uni fun
+    => Binding tyname name uni fun a
+    -> Bool
+-- See Note [Purity, strictness, and variables]
+-- We could maybe do better here, but not worth it at the moment
+mayHaveEffects (TermBind _ Strict _ t') = not $ isPure (const NonStrict) t'
+mayHaveEffects _                        = False
+
+-- a more extreme way is to treat all strict bindings as unmovable
 -- FIXME: boolean blindness
 isStrictBinding (TermBind _ Strict _  _) = True
 isStrictBinding _                        = False
