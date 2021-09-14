@@ -35,11 +35,11 @@
     "easy-purescript-nix": {
       "flake": false,
       "locked": {
-        "lastModified": 1614069378,
-        "narHash": "sha256-OGLWGzLEnBsnX/4gW15Je5Z6EGrrq1AoSfniaOsSr0s=",
+        "lastModified": 1630844553,
+        "narHash": "sha256-C7cFBs5ld2/dTdbwpDM8b0C/65pgUsJz6+SZ4fUcTxM=",
         "owner": "justinwoo",
         "repo": "easy-purescript-nix",
-        "rev": "c2e49b4a94ee55df294212c561f2ac7225a8ebbf",
+        "rev": "598aea7973c25b0a3fa976dcac629c39f2e56680",
         "type": "github"
       },
       "original": {
@@ -100,16 +100,16 @@
     "haskell-language-server": {
       "flake": false,
       "locked": {
-        "lastModified": 1627623934,
-        "narHash": "sha256-RjPRzpcfL2UNGp2IYEh3rIrBeSnpdafdJhMAvrtXrbA=",
+        "lastModified": 1618300575,
+        "narHash": "sha256-5bIr7Zsvn1B8bjjiHPLQQS8+qW3ZiEwqBnFUG+fAcU8=",
         "owner": "haskell",
         "repo": "haskell-language-server",
-        "rev": "e7c5e90b6df5dff2760d76169eddaea3bdd6a831",
+        "rev": "f1c096927186a93d8e3ccd4fe8385cc1b070350b",
         "type": "github"
       },
       "original": {
         "owner": "haskell",
-        "ref": "1.3.0",
+        "ref": "1.1.0",
         "repo": "haskell-language-server",
         "type": "github"
       }
@@ -169,11 +169,11 @@
     "npmlock2nix": {
       "flake": false,
       "locked": {
-        "lastModified": 1628944002,
-        "narHash": "sha256-eRTG5eWjFN6i0CIPbt5XSeYjvIJ3nsmuS/5ggCVAMXg=",
+        "lastModified": 1631558099,
+        "narHash": "sha256-xguvgtrIQHPxpc4J6EhfBnYtQDGJpt6hK1dN7KEi8R4=",
         "owner": "tweag",
         "repo": "npmlock2nix",
-        "rev": "bf6515b9614645429e1f1846ce07c31f5879e45f",
+        "rev": "33eb3300561d724da64a46ab8e9a05a9cfa9264b",
         "type": "github"
       },
       "original": {
@@ -185,11 +185,11 @@
     "pre-commit-hooks-nix": {
       "flake": false,
       "locked": {
-        "lastModified": 1624971177,
-        "narHash": "sha256-Amf/nBj1E77RmbSSmV+hg6YOpR+rddCbbVgo5C7BS0I=",
+        "lastModified": 1631170176,
+        "narHash": "sha256-RLN/kur2Kpxt0cJp0Fms8ixuGpT8IHX0OpeQ8u8f0X4=",
         "owner": "cachix",
         "repo": "pre-commit-hooks.nix",
-        "rev": "397f0713d007250a2c7a745e555fa16c5dc8cadb",
+        "rev": "3ed0e618cebc1ff291c27b749cf7568959cac028",
         "type": "github"
       },
       "original": {
@@ -220,11 +220,11 @@
     "spago2nix": {
       "flake": false,
       "locked": {
-        "lastModified": 1620480713,
-        "narHash": "sha256-gvewQhhrK9FODgFWVMxZ//gsXB/O7/D7mY7D1PG/9ew=",
+        "lastModified": 1628161480,
+        "narHash": "sha256-oTBdCpCJmuMQ6nYR1+tamL9xDPm720dRVxsKtKOzTfs=",
         "owner": "justinwoo",
         "repo": "spago2nix",
-        "rev": "a4622c3b27fca47e3276131a8ec4097a1d3c78a7",
+        "rev": "da4a833b53f9139e596f89ad89d892f4f60fc179",
         "type": "github"
       },
       "original": {
